@@ -1,0 +1,43 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Secrets / local config
+.env
+secrets.yaml
+config_local.yaml
+
+# Data
+data/
+
+# Results
+results/
+outputs/
+plots/
+
+# Models / binaries
+*.pkl
+*.joblib
+*.h5
+*.parquet
