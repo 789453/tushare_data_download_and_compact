@@ -3,7 +3,7 @@ from __future__ import annotations
 from ..core.dataset_spec import DatasetSpec
 
 SPEC = DatasetSpec(
-    name="macro_gdp",
+    name="macro_cn_gdp",
     api_name="cn_gdp",
     asset_class="macro",
     fetch_mode="period_quarter",
@@ -14,5 +14,6 @@ SPEC = DatasetSpec(
     limit=10000,
     supports_offset=False,
     supports_trade_cal=False,
+    lookback_quarters=8,
 )
 

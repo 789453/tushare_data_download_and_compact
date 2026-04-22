@@ -3,7 +3,7 @@ from __future__ import annotations
 from ..core.dataset_spec import DatasetSpec
 
 SPEC = DatasetSpec(
-    name="cffex_opt_basic",
+    name="cffex_opt_basic_full",
     api_name="opt_basic",
     asset_class="options",
     fetch_mode="snapshot",
@@ -15,5 +15,6 @@ SPEC = DatasetSpec(
     supports_offset=True,
     supports_trade_cal=False,
     exchange_filter="CFFEX",
+    keep_snapshots=True,
 )
 

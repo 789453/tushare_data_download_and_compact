@@ -1,1449 +1,1164 @@
+下面给你一份可直接指导编程改造的工程文档。它不是“说明书风格”的泛讲，而是面向落地实施的设计稿：明确最终项目形态、代码结构、模块职责、接口、状态管理、增量更新、测试、日志与进度展示，以及当前仓库每个关键文件应该怎么迁移。本文档基于我重新核对的仓库现状：仓库根目录已经有 `src_data_download`、`src_new_data_download`、`tests`、`pytest.ini`，而 `src_data_download` 下目前仍主要是脚本式文件，如 `download_daily_2026.py`、`download_daily_basic_2026.py`、`download_trade_date_generic.py`、`ts_download_utils.py`、`update_raw_data.py`、`compact_raw_data.py` 等；README 则已经提出了向 `core/ + adapters/ + datasets/ + jobs/` 迁移的方向。与此同时，`tests/unit`、`tests/integration`、`tests/contract` 已经在引用 `src_data_download.core.dataset_spec`、`Runner`、`Task`、`src_data_download.datasets` 等模块，但这些路径并未出现在当前 `src_data_download` 可见目录中，说明仓库正处于“README 和测试先行，主实现仍停留在旧脚本层”的过渡态。([GitHub](https://github.com/789453/tushare_data_download_and_compact "https://github.com/789453/tushare_data_download_and_compact"))
 
+***
 
-下面这份是按你现在这个 **GitHub 仓库的真实代码结构** 和 **Tushare 当前文档** 收敛出来的重构工程文档，不是只复述 README。核心判断先说在前面：
+# 一、改造目标
 
-你现在的下载系统已经有了一个可用主干：`download_daily_2026.py` 和 `download_daily_basic_2026.py` 都是“按交易日拉取 → 分页 → 原子写 parquet → 写 `_state` 标记 → 并发执行”的模式；`ts_download_utils.py` 已经提供了 token 读取、重试、交易日历、分页抓取、原子落盘、状态清单、最大日期探测和进度条这些通用能力；`update_raw_data.py` 又把日频类数据、筹码、分钟数据和 compact 串起来了；`compact_raw_data.py` 还会先备份主文件再合并碎片。也就是说，你不是从零开始重构，而是从一个已经跑通的“原始下载框架”升级到“统一的数据工程框架”。
+本次改造的最终目标，不是“再多加几份下载脚本”，而是把项目升级为一个三层协同的数据工程系统：
 
-你的仓库当前范围也很明确：`src_data_download` 里已经有股票日线、每日指标、资金流、分钟线、股票基础信息、通用交易日下载器、验证和测试脚本；“数据文档”把数据域分成了股票、指数和股指期货/期权、宏观三块，但当前“宏观数据”目录里混入了“期权合约信息”和“期权日线行情”，说明数据域边界还没完全收紧。
+1. **Parquet** 继续作为原始落地和对外交换格式，负责保存原始抓取结果、快照、分片和审计副本。DuckDB 能直接高效读取和写出 Parquet，并支持在扫描 Parquet 时做过滤下推和列裁剪，因此 Parquet 仍然应该保留为底层文件格式。([DuckDB](https://duckdb.org/docs/current/data/parquet/overview.html?utm_source=chatgpt.com "Reading and Writing Parquet Files"))
+2. **DuckDB** 作为本地分析型主引擎，负责 raw → silver 的合并、去重、统一 schema、增量 upsert、验证查询、统计报表、导出标准 Parquet。DuckDB 是嵌入式分析数据库，支持持久化 `.duckdb` 文件，也支持 `MERGE INTO` 做 upsert，特别适合你这个“本地批量数据工程 + 高并发下载后合并”的场景。([DuckDB](https://duckdb.org/docs/current/clients/python/overview.html?utm_source=chatgpt.com "Python API"))
+3. **SQLite3** 作为控制平面数据库，负责任务状态、水位、文件清单、失败重试、作业运行记录、校验报告索引等“小而关键”的元数据。Python 标准库自带 `sqlite3`，SQLite 支持 `ON CONFLICT` UPSERT，且 WAL 模式可提升并发读写场景下的实用性，因此很适合做 job metadata store，而不适合承担大事实表。([Python documentation](https://docs.python.org/3/library/sqlite3.html "https://docs.python.org/3/library/sqlite3.html"))
 
-结合你这次的新约束，我建议项目范围先冻结成下面四类：
+结论就是：**Parquet 做 raw/snapshot/file exchange，DuckDB 做事实表与标准层，SQLite 做状态与控制平面。**
 
-- 股票：保留现有主线，不再扩域。
-    
-- A 股核心指数：只做 **不超过 8 只** 的主指数。
-    
-- 股指期货：只做 **CFFEX 股指期货**，不碰商品期货。
-    
-- 股指期权：只做 **CFFEX 股指期权**，不碰商品期权、ETF 期权的全市场大扩展。
-    
-- 宏观/外汇：先做少量高信息密度序列，不追求全量。Tushare 的 `index_basic`、`index_daily`、`index_dailybasic`、`fut_basic`、`fut_daily`、`fut_mapping`、`opt_basic`、`opt_daily`、`fx_obasic`、`fx_daily`、`cn_gdp`、`cn_cpi`、`cn_ppi` 等接口都支持这种“按接口单独建下载器”的做法，但它们的参数形态和限流规则差异很大，所以重构的关键不是多写几个脚本，而是把“任务切分方式”抽象出来。
-    
+***
 
----
+# 二、对当前仓库的工程判断
 
-# 一、现有代码的核心问题，不是“写法差”，而是“抽象还停在脚本层”
+当前 `src_data_download` 目录仍是典型的“脚本集合”形态，而不是“框架形态”。可见文件包括 `download_daily_2026.py`、`download_daily_basic_2026.py`、`download_moneyflow_2026.py`、`download_trade_date_generic.py`、`download_stock_basics.py`、`download_stk_mins_2026.py`、`update_raw_data.py`、`compact_raw_data.py`、`verify_2026.py` 等。README 已明确指出现有主干已经可用：`download_daily_2026.py` 和 `download_daily_basic_2026.py` 都是“按交易日拉取 → 分页 → 原子写 parquet → 写状态 → 并发执行”，而 `ts_download_utils.py` 已有 token 读取、重试、交易日历、分页抓取、原子落盘、状态清单、最大日期探测和进度条等通用能力。([GitHub](https://github.com/789453/tushare_data_download_and_compact/tree/main/src_data_download "https://github.com/789453/tushare_data_download_and_compact/tree/main/src_data_download"))
 
-最明显的问题有三个。
+进一步看真实代码，`download_trade_date_generic.py` 的 `run()` 仍固定以 `trade_cal` 获取 `trade_dates`，统一使用单个 `_manifest.json`，固定 `limit = 6000`，并对每个交易日调用 `api(trade_date=d, limit=limit, offset=offset)`，然后把文件落成 `{trade_date}_o{offset}.parquet`；`update_raw_data.py` 仍通过 `if/elif` 硬编码分发 `daily/daily_basic/moneyflow/stk_limit/suspend_d`、`cyq_perf`、`stk_mins_*`，并在每个数据集更新后立刻执行 `compact_generic`；`compact_raw_data.py` 则按 `{name}_*parts` 搜索碎片目录，备份旧主文件为 `.bak_时间戳` 后再合并。`ts_download_utils.py` 中虽然已有 `retry_call`、`iter_trade_dates_yyyymmdd`、`paginated_fetch`、`StateManifest`、`get_parquet_max_date`、`compact_parquet_files_to_single`、`Progress` 等通用件，但它们还没有被提升为统一 runner/spec 体系。([GitHub](https://raw.githubusercontent.com/789453/tushare_data_download_and_compact/main/src_data_download/download_trade_date_generic.py "raw.githubusercontent.com"))
 
-第一，**下载脚本之间重复度很高**。  
-`download_daily_2026.py` 和 `download_daily_basic_2026.py` 结构几乎相同：线程本地 `pro`、按交易日取 `trade_cal`、按 `limit=6000` 分页、写 `YYYYMMDD_o00000.parquet`、写每日 JSON 完成标记、线程池并发。它们本质上只差 `api = pro2.daily` 和 `api = pro2.daily_basic`，以及输出目录名。这个重复在股票域还可接受，但一旦你继续加指数、股指期货、股指期权和宏观接口，复制脚本会迅速失控。
+因此，这个仓库现在最真实的状态是：**下载骨架已经跑通，但抽象层级还停留在脚本层，README 和 tests 已经开始向框架层迁移，代码实现尚未跟上。** 这也是为什么你这次加指数、期货、期权、外汇、宏观后，必须正式引入 DuckDB + Parquet + SQLite 的三层架构，而不能继续“复制几个 `download_xxx_2026.py`”了。([GitHub](https://github.com/789453/tushare_data_download_and_compact "https://github.com/789453/tushare_data_download_and_compact"))
 
-第二，**你现在已经有通用能力，但没有把它们正式上升为“下载框架约定”**。  
-`ts_download_utils.py` 里已经有 `retry_call`、`iter_trade_dates_yyyymmdd`、`paginated_fetch`、`write_parquet_atomic`、`StateManifest`、`get_parquet_max_date`、`Progress`。这说明你已经写出了 70% 的框架基础设施，但上层下载脚本还没有统一走同一个 Runner/Spec 体系。
+***
 
-第三，**“数据域”和“任务切分维度”还没分开**。  
-股票日频类接口适合“按交易日切任务”；指数日线更适合“按指数代码切长时间窗口”；期货合约表是快照/字典类；期货连续映射是桥表；期权合约信息是合约维表；宏观数据是月度/季度 period 序列。现在如果继续把所有新增接口都塞进 `download_xxx_2026.py` 这种按交易日扫描的模版里，后面维护会非常差。Tushare 官方文档本身已经透露出这些接口的任务粒度差异：`daily_basic` 单次 6000 条、按日线循环提取全历史；`index_daily` 单次 8000 条，适合指定代码和时间段；`index_dailybasic` 目前只覆盖 6 个大盘指数且单次 3000 条；`fut_daily` 单次 2000 条；`fut_mapping` 单次 2000 条；`opt_daily` 单次 15000 条；`cn_gdp` 和 `cn_cpi/cn_ppi` 则是按季度/月度 period 查询。
+# 三、命名与数据域修正原则
 
----
+你前面确认过的“命名问题”必须在这次改造里彻底修正。你上传的筛选清单里，第一组 `.CFX` 连续/主力/当月/次月/当季/下季代码被放在 `fx_obasic_full.parquet` 段里，但从 Tushare 文档和中金所/期货规则看，这类代码属于期货连续/映射域，应归入 `fut_mapping` / `fut_basic` / `fut_daily` 体系；而 `GBPUSD.FXCM`、`USDCNH.FXCM`、`USDJPY.FXCM`、`USOil.FXCM`、`XAGUSD.FXCM` 才属于 `fx_obasic` / `fx_daily` 域。`index_basic` 与 `opt_basic` 也应分别独立。 ([Tushare](https://tushare.pro/document/2?doc_id=189 "https://tushare.pro/document/2?doc_id=189"))
 
-# 二、这次重构的总目标
+本次重构后，建议统一使用下面这些名称：
 
-这次不要把目标定成“把所有下载脚本都改漂亮”，而要定成：
+- `cffex_fut_mapping_selected`
+- `cffex_fut_basic`
+- `cffex_fut_daily`
+- `fx_basic_selected`
+- `fx_daily_selected`
+- `index_basic_selected`
+- `index_daily_selected`
+- `index_dailybasic_supported`
+- `cffex_opt_basic_full`
+- `cffex_opt_daily`
+- `macro_cn_gdp`
+- `macro_cn_cpi`
+- `macro_cn_ppi`
 
-**先把数据稳定下载好，同时把参数差异、溯源、断点续跑、测试、后处理全部纳入统一框架。**
+不要再沿用会误导数据域的文件名，例如把 `.CFX` 连续映射表命名成 `fx_obasic_full`。这一点不只是命名整洁问题，而是后续统一 API、统一主键、统一增量更新和统一验证规则是否能干净落地的基础。
 
-我建议你把重构目标定成四条：
+***
 
-1. **统一下载执行模型**：不同接口共用一个 Runner，但可以选择不同 TaskBuilder。
-    
-2. **统一原始落库约定**：所有数据都先落 raw/bronze 层，保留原字段和抓取溯源。
-    
-3. **统一验证约定**：不是每个脚本自己 print，而是统一输出 verify report。
-    
-4. **统一测试体系**：单元测试、契约测试、集成测试、回归测试分层。
-    
+# 四、最终项目架构形态
 
----
+建议把项目最终收敛成下面这个结构。它与 README 已提出的 `core/ + adapters/ + datasets/ + jobs/ + tests/` 思路保持一致，但把 DuckDB、SQLite、配置、审计和 CLI 都纳入。README 中已经明确提出这样的方向，只是当前代码还没完全落地。([GitHub](https://github.com/789453/tushare_data_download_and_compact/blob/main/README.md "https://github.com/789453/tushare_data_download_and_compact/blob/main/README.md"))
 
-# 三、建议的目标工程结构
+```
+tushare_data_download_and_compact/
+├─ config/
+│  ├─ settings.toml
+│  ├─ logging.yaml
+│  ├─ universe.yaml
+│  └─ datasets/
+│     ├─ stock.yaml
+│     ├─ index.yaml
+│     ├─ futures.yaml
+│     ├─ options.yaml
+│     ├─ macro.yaml
+│     └─ fx.yaml
+├─ data/
+│  ├─ raw/                       # 原始 Parquet 分片与快照
+│  │  ├─ stock/
+│  │  ├─ index/
+│  │  ├─ futures/
+│  │  ├─ options/
+│  │  ├─ macro/
+│  │  └─ fx/
+│  ├─ silver/                    # DuckDB 导出的标准 Parquet
+│  ├─ catalog/                   # basic/universe 快照
+│  ├─ audit/                     # verify report / dead letter / manifests
+│  └─ meta/
+│     ├─ control.sqlite3         # 控制平面
+│     └─ warehouse.duckdb        # 分析仓库
+├─ src_data_download/
+│  ├─ core/
+│  │  ├─ dataset_spec.py
+│  │  ├─ task.py
+│  │  ├─ task_builders.py
+│  │  ├─ runner.py
+│  │  ├─ state_store.py
+│  │  ├─ lineage.py
+│  │  ├─ parquet_sink.py
+│  │  ├─ duckdb_store.py
+│  │  ├─ sqlite_meta.py
+│  │  ├─ rate_limiter.py
+│  │  ├─ verify_rules.py
+│  │  ├─ progress.py
+│  │  └─ exceptions.py
+│  ├─ adapters/
+│  │  ├─ tushare_client.py
+│  │  └─ calendars.py
+│  ├─ datasets/
+│  │  ├─ __init__.py
+│  │  ├─ registry.py
+│  │  ├─ stock_daily.py
+│  │  ├─ stock_daily_basic.py
+│  │  ├─ stock_moneyflow.py
+│  │  ├─ stock_suspend.py
+│  │  ├─ stock_limit.py
+│  │  ├─ stock_basic.py
+│  │  ├─ stock_minutes.py
+│  │  ├─ index_basic_selected.py
+│  │  ├─ index_daily_selected.py
+│  │  ├─ index_dailybasic_supported.py
+│  │  ├─ cffex_fut_basic.py
+│  │  ├─ cffex_fut_mapping_selected.py
+│  │  ├─ cffex_fut_daily_selected.py
+│  │  ├─ cffex_opt_basic_full.py
+│  │  ├─ cffex_opt_daily.py
+│  │  ├─ fx_basic_selected.py
+│  │  ├─ fx_daily_selected.py
+│  │  ├─ macro_cn_gdp.py
+│  │  ├─ macro_cn_cpi.py
+│  │  └─ macro_cn_ppi.py
+│  ├─ jobs/
+│  │  ├─ bootstrap_history.py
+│  │  ├─ catalog_refresh.py
+│  │  ├─ update_incremental.py
+│  │  ├─ compact_job.py
+│  │  ├─ verify_job.py
+│  │  ├─ smoke_job.py
+│  │  └─ export_job.py
+│  ├─ cli.py
+│  └─ compat/
+│     ├─ download_trade_date_generic.py
+│     ├─ update_raw_data.py
+│     └─ compact_raw_data.py
+├─ tests/
+│  ├─ unit/
+│  ├─ integration/
+│  ├─ contract/
+│  ├─ smoke/
+│  └─ regression/
+└─ pytest.ini
 
-建议把 `src_data_download` 重构成下面这样：
+```
 
-`src_data_download/   core/     dataset_spec.py     runner.py     task_builders.py     sinks.py     state_store.py     lineage.py     exceptions.py   adapters/     tushare_client.py     stock.py     index.py     futures.py     options.py     macro.py     fx.py   datasets/     stock_daily.py     stock_daily_basic.py     stock_moneyflow.py     stock_suspend.py     stock_limit.py     stock_basic.py     stock_minutes.py      index_basic.py     index_daily.py     index_dailybasic.py      cffex_fut_basic.py     cffex_fut_daily.py     cffex_fut_mapping.py      cffex_opt_basic.py     cffex_opt_daily.py      macro_gdp.py     macro_cpi.py     macro_ppi.py     macro_money_supply.py     macro_social_financing.py     macro_pmi.py      fx_basic.py     fx_daily.py   jobs/     bootstrap_history.py     update_incremental.py     compact_job.py     verify_job.py     catalog_dump.py   tests/     unit/     integration/     contract/     regression/`
+***
 
-这不是为了“目录好看”，而是为了把四类变化拆开：
+# 五、三层存储职责分工
 
-- `core/`：下载框架本身
-    
-- `adapters/`：Tushare 接口调用差异
-    
-- `datasets/`：每个数据集的声明式配置
-    
-- `jobs/`：历史初始化、每日更新、合并、验证这些操作流
-    
+## 5.1 Parquet：原始层与交换层
 
-这样你以后再加接口，不再需要复制一整个 `download_xxx_2026.py`。
+Parquet 继续承担三个职责：
 
----
+第一，保存**raw 分片**。所有网络请求的返回结果先落 raw Parquet，不直接写入 DuckDB 正式事实表。这样可以保留原始响应痕迹，失败时也可以重放。DuckDB 官方明确支持直接读写 Parquet，并可直接对 Parquet 做 SQL 查询，因此 raw 用 Parquet 最合适。([DuckDB](https://duckdb.org/docs/current/data/parquet/overview.html?utm_source=chatgpt.com "Reading and Writing Parquet Files"))
 
-# 四、核心抽象：不要再以“脚本”为中心，而要以 `DatasetSpec` 为中心
+第二，保存**快照类表**。例如 `fx_obasic`、`index_basic`、`fut_basic`、`opt_basic` 这类基础信息，应按抓取日期保留完整快照，写到 `data/raw/<asset>/<dataset>/snapshot_date=YYYYMMDD/part-000.parquet`。这类表不应该在 raw 层只留最新版本，否则 lineage 和审计能力会丢失。这个设计与你仓库 README 对快照类任务的建议一致。([GitHub](https://github.com/789453/tushare_data_download_and_compact/blob/main/README.md "https://github.com/789453/tushare_data_download_and_compact/blob/main/README.md"))
 
-这是重构里最关键的一步。
+第三，保存**标准导出层**。DuckDB 中整理后的 silver 表应按数据集导出一份标准 Parquet 给后续策略研究、特征工程或其他下游系统使用。这样下游可以不直接耦合 `.duckdb` 文件，而只消费稳定 schema 的 Parquet。([DuckDB](https://duckdb.org/docs/current/data/parquet/overview.html?utm_source=chatgpt.com "Reading and Writing Parquet Files"))
 
-建议你的每个数据集都变成一个声明对象，大概像这样：
+## 5.2 DuckDB：事实层、整合层、验证层
 
-`from dataclasses import dataclass, field from typing import Literal  @dataclass(frozen=True) class DatasetSpec:     name: str     api_name: str     asset_class: Literal["stock", "index", "futures", "options", "macro", "fx"]     fetch_mode: Literal["trade_date", "ts_code_range", "snapshot", "period_month", "period_quarter"]     pk_cols: tuple[str, ...]     partition_cols: tuple[str, ...]     date_col: str | None     required_fields: tuple[str, ...] = ()     optional_fields: tuple[str, ...] = ()     limit: int = 2000     supports_offset: bool = True     supports_trade_cal: bool = False     exchange_filter: str | None = None     market_filter: str | None = None`
+DuckDB 负责：
 
-然后不同数据集只写配置，不重复写下载骨架。
+- 从 raw Parquet 扫描数据；
+- 用 `union_by_name` 思路容忍 schema 演进；
+- 在 silver 层做去重、字段对齐、标准化；
+- 用 `MERGE INTO` 执行增量 upsert；
+- 做验证查询、缺口扫描、重复检查、指标统计；
+- 把 silver 结果再导出为 Parquet。DuckDB 官方文档明确支持持久化数据库、Parquet 读写，以及 `MERGE INTO` 用于 upsert。([DuckDB](https://duckdb.org/docs/current/clients/python/overview.html?utm_source=chatgpt.com "Python API"))
 
-例如：
+DuckDB 不用来替代 raw 文件，而是充当**规范层/分析层**。也就是说：
 
-- `stock_daily`: `fetch_mode="trade_date"`, `api_name="daily"`, `limit=6000`, `date_col="trade_date"`
-    
-- `index_daily`: `fetch_mode="ts_code_range"`, `api_name="index_daily"`, `limit=8000`, `date_col="trade_date"`
-    
-- `cffex_fut_mapping`: `fetch_mode="ts_code_range"`, `api_name="fut_mapping"`, `limit=2000`
-    
-- `macro_gdp`: `fetch_mode="period_quarter"`, `api_name="cn_gdp"`, `date_col="quarter"`
-    
-- `fx_basic`: `fetch_mode="snapshot"`, `api_name="fx_obasic"`
-    
+- raw 是事实抓取记录；
+- duckdb.silver 是规范事实表；
+- 导出的 silver parquet 是对外交换层。
 
-这样你真正复用的是框架，数据集只声明差异。
+## 5.3 SQLite：控制平面
 
----
+SQLite 只承担元数据控制，不存大事实表。建议它只存：
 
-# 五、TaskBuilder 才是处理“参数具体上有许多不同”的关键
+- `job_run`
+- `task_run`
+- `dataset_watermark`
+- `file_manifest`
+- `dataset_snapshot`
+- `verify_run`
+- `dead_letter`
+- `catalog_state`
 
-你特别强调“每个下载的参数具体上有许多不同，要全面处理和保留溯源”，我完全同意。  
-所以真正该抽象的不是 `api_name`，而是 **任务生成器**。
+Python 标准库 `sqlite3` 适合这个场景；SQLite 的 WAL 模式更适合“多个 reader + 少量 writer”的控制平面；`INSERT ... ON CONFLICT DO UPDATE` 适合更新 watermark、task state、file manifest。([Python documentation](https://docs.python.org/3/library/sqlite3.html "https://docs.python.org/3/library/sqlite3.html"))
 
-## 1. `TradeDateTaskBuilder`
+***
 
-给股票日频类接口用。
+# 六、核心抽象与代码接口
+
+## 6.1 `DatasetSpec`
+
+整个工程的中心不再是脚本，而是 `DatasetSpec`。README 已明确提出这一步，并且现有 contract/unit tests 也已经在引用 `DatasetSpec`。([GitHub](https://github.com/789453/tushare_data_download_and_compact/blob/main/README.md "https://github.com/789453/tushare_data_download_and_compact/blob/main/README.md"))
+
+建议定义如下：
+
+```
+from dataclasses import dataclass, field
+from typing import Literal
+
+FetchMode = Literal[
+    "trade_date",
+    "ts_code_range",
+    "snapshot",
+    "period_month",
+    "period_quarter",
+]
+
+AssetClass = Literal["stock", "index", "futures", "options", "macro", "fx"]
+
+@dataclass(frozen=True)
+class DatasetSpec:
+    name: str
+    api_name: str
+    asset_class: AssetClass
+    fetch_mode: FetchMode
+
+    pk_cols: tuple[str, ...]
+    partition_cols: tuple[str, ...]
+    date_col: str | None
+
+    required_fields: tuple[str, ...] = ()
+    optional_fields: tuple[str, ...] = ()
+    fields: tuple[str, ...] | None = None
+
+    limit: int = 2000
+    supports_offset: bool = True
+    supports_trade_cal: bool = False
+
+    exchange_filter: str | None = None
+    market_filter: str | None = None
+
+    stable_before: str | None = None
+    lookback_days: int = 0
+    lookback_months: int = 0
+    lookback_quarters: int = 0
+
+    keep_snapshots: bool = False
+    selected_codes: tuple[str, ...] = ()
+    extra_params: dict[str, str] = field(default_factory=dict)
+
+    def validate(self) -> None:
+        ...
+
+```
+
+这里的重点不是字段多少，而是这几个约束必须进入 spec：
+
+- `fetch_mode`
+- `pk_cols`
+- `date_col`
+- `limit`
+- `supports_offset`
+- `stable_before`
+- `lookback_*`
+- `selected_codes`
+- `keep_snapshots`
+
+这样才能把“股票按交易日、指数按代码窗口、宏观按月份/季度、快照表按 snapshot”的差异固化到框架里，而不是散落在脚本里。这个方向与 README 中对 `DatasetSpec`、`TaskBuilder` 的建议一致。([GitHub](https://github.com/789453/tushare_data_download_and_compact/blob/main/README.md "https://github.com/789453/tushare_data_download_and_compact/blob/main/README.md"))
+
+## 6.2 `Task`
+
+一个 Task 对应一次幂等请求。tests 已经明确要求 task key 对 request\_params 的字典顺序不敏感，因此 `task_key` 必须基于 canonical JSON 生成。README 也给出了同样的建议。([GitHub](https://raw.githubusercontent.com/789453/tushare_data_download_and_compact/main/tests/unit/test_task_key.py "raw.githubusercontent.com"))
+
+```
+@dataclass(frozen=True)
+class Task:
+    spec: DatasetSpec
+    request_params: dict[str, str]
+
+    @property
+    def params_hash(self) -> str:
+        ...
+
+    @property
+    def task_key(self) -> str:
+        ...
+
+```
+
+**统一规则：**
+
+- `task_key = sha1(dataset_name + canonical_json(params))`
+- `canonical_json` 必须 `sort_keys=True`
+- 任何一个任务都必须能通过 `task_key` 在 SQLite 中唯一找到对应状态、输出文件、行数、重试次数和错误信息。
+
+## 6.3 `TaskBuilder`
+
+真正需要抽象的不是 `api_name`，而是任务构造器。README 已经把四类 builder 定义得很清楚，这里直接作为正式实现标准。([GitHub](https://github.com/789453/tushare_data_download_and_compact/blob/main/README.md "https://github.com/789453/tushare_data_download_and_compact/blob/main/README.md"))
+
+### `TradeDateTaskBuilder`
 
 适用：
 
 - `daily`
-    
 - `daily_basic`
-    
 - `moneyflow`
-    
 - `stk_limit`
-    
 - `suspend_d`
-    
 
 逻辑：
 
-- 用 `trade_cal` 取开市日
-    
-- 每个 `trade_date` 是一个任务
-    
-- 每个任务分页抓取直到 `got < limit`
-    
-- 成功后写 `state[trade_date]=done`
-    
+- 通过交易日历取 `trade_date`
+- 每个 `trade_date` 生成一个 task
+- task 参数形如 `{"trade_date": "20260422"}`
 
-你现有股票脚本就是这个模式。
-
-## 2. `CodeRangeTaskBuilder`
-
-给指数、股指期货、股指期权日线用。
+### `CodeRangeTaskBuilder`
 
 适用：
 
 - `index_daily`
-    
 - `index_dailybasic`
-    
 - `fut_daily`
-    
 - `fut_mapping`
-    
 - `opt_daily`
-    
+- `fx_daily`
 
 逻辑：
 
-- 先拿 universe（指数代码、合约代码）
-    
-- 每个 `ts_code + date window` 是一个任务
-    
-- 如果该接口单次上限足够大，就按年/半年切窗口
-    
-- 每个任务分页抓取直到 `got < limit`
-    
+- 先获得 universe
+- 每个 `ts_code + start_date + end_date` 生成一个 task
+- 窗口粒度按数据集可配置：年/半年/季度
 
-这比“按全市场交易日扫”更适合指数和衍生品。
-
-## 3. `SnapshotTaskBuilder`
-
-给字典表和基础信息表。
+### `SnapshotTaskBuilder`
 
 适用：
 
 - `index_basic`
-    
 - `fut_basic`
-    
 - `opt_basic`
-    
 - `fx_obasic`
-    
 - `stock_basic`
-    
 
 逻辑：
 
-- 不按交易日
-    
-- 一次全量抓取或按交易所分片抓取
-    
-- 落快照文件，保留 `fetched_at` 和 `source_params`
-    
+- 一次全量或按交易所分片
+- 以 `snapshot_date` 做目录分区
+- 不走 trade\_cal
 
-## 4. `PeriodTaskBuilder`
-
-给宏观月/季频序列。
+### `PeriodTaskBuilder`
 
 适用：
 
 - `cn_gdp`
-    
 - `cn_cpi`
-    
 - `cn_ppi`
-    
-- `cn_m`
-    
-- `cn_sf`
-    
-- `cn_pmi`
-    
 
 逻辑：
 
-- 月度用 `start_m/end_m`
-    
-- 季度用 `start_q/end_q`
-    
-- 周期序列一次全量可拉完时，不要假装走交易日框架
-    
+- 季频生成 `start_q/end_q`
+- 月频生成 `start_m/end_m`
+- 初始化全量；增量回拉若干 period
+
+## 6.4 `Runner`
+
+`Runner` 是统一执行器。integration test 已经在使用一个 `FakePro + Runner + Task` 的模式，说明这条线是应该落地的。([GitHub](https://raw.githubusercontent.com/789453/tushare_data_download_and_compact/main/tests/integration/test_runner_fake_pro.py "raw.githubusercontent.com"))
+
+```
+class Runner:
+    def __init__(
+        self,
+        project_root: Path,
+        raw_root: Path,
+        sqlite_meta: SQLiteMetaStore,
+        duckdb_store: DuckDBStore,
+        sink: ParquetSink,
+        logger: logging.Logger,
+        rate_limiter: GlobalRateLimiter,
+    ):
+        ...
+
+    def run_dataset(
+        self,
+        pro,
+        spec: DatasetSpec,
+        tasks: list[Task],
+        max_workers: int,
+        overwrite: bool = False,
+    ) -> list[TaskResult]:
+        ...
+
+    def run_tasks(
+        self,
+        pro,
+        tasks: list[Task],
+        max_workers: int,
+        overwrite: bool = False,
+    ) -> list[TaskResult]:
+        ...
 
-这一步做对了，后面的脚本会非常干净。
-
----
-
-# 六、按你的新范围，推荐的数据集清单
-
-## A. 股票：保持现有 6 个日频核心 + 2 个基础/分钟扩展
-
-保留并标准化：
-
-- `daily`
-    
-- `daily_basic`
-    
-- `moneyflow`
-    
-- `stk_limit`
-    
-- `suspend_d`
-    
-- `cyq_perf`
-    
-- `stock_basic`
-    
-- `stk_mins_60min`
-    
-
-这是你现在已成型的主线。`update_raw_data.py` 也已经把 `daily,daily_basic,moneyflow,stk_limit,suspend_d,cyq_perf,stk_mins_60min` 作为默认更新集。
-
-## B. A 股指数：建议 7 只主指数，最多 8 只
-
-先说我建议的主清单：
-
-1. `000001.SH` 上证综指
-    
-2. `399001.SZ` 深证成指
-    
-3. `000300.SH` 沪深300
-    
-4. `000016.SH` 上证50
-    
-5. `000905.SH` 中证500
-    
-6. `000852.SH` 中证1000
-    
-7. `399006.SZ` 创业板指
-    
-
-可选第 8 只：  
-8. `000688.SH` 科创50
-
-原因不是“它们最有名”，而是这 7-8 只已经把你后面量化研究里最常见的市场 beta、大小盘风格、蓝筹/成长风格和科创/创业板风格都覆盖了。
-
-这里有一个重要现实约束：
-
-- `index_basic` 是全量指数元数据接口，市场和类别非常多。
-    
-- 但 `index_dailybasic` 官方文档明确说 **目前只提供上证综指、深证成指、上证50、中证500、中小板指、创业板指** 六个指数的每日指标。也就是说，`000300.SH`、`000852.SH`、`000688.SH` 这类指数你可以稳定拿到 `index_daily`，但未必能从 `index_dailybasic` 拿到同等覆盖的每日估值/换手等指标。
-    
-
-所以工程上要分两层：
-
-- **Tier 1: 行情主指数池**：上面 7-8 只，全都下载 `index_daily`
-    
-- **Tier 2: 指标覆盖池**：只对 `index_dailybasic` 实际支持的那几只下载每日指标
-    
-
-不要强行要求两层完全同构。
-
-## C. 股指期货：只做 CFFEX 的 4 条主线
-
-推荐：
-
-- `IF` 沪深300股指期货
-    
-- `IH` 上证50股指期货
-    
-- `IC` 中证500股指期货
-    
-- `IM` 中证1000股指期货
-    
-
-中金所官网当前产品页明确有沪深300、上证50、中证500、中证1000股指期货产品。
-
-工程上分三张表：
-
-- `cffex_fut_basic`
-    
-- `cffex_fut_daily`
-    
-- `cffex_fut_mapping`
-    
-
-`fut_basic` 给合约列表；`fut_daily` 给月合约日线；`fut_mapping` 给连续/主力到月合约的映射。Tushare 文档对这三者的角色和参数差异写得很清楚：`fut_basic` 是合约列表、`fut_daily` 是日线、`fut_mapping` 是连续合约与月合约映射。
-
-**关键建议**：  
-不要在 raw 层直接把“主力连续价格”当原始事实表。  
-raw 层只存：
-
-- 月合约日线
-    
-- 连续映射关系
-    
-
-真正的连续合约价格曲线，在 silver/gold 层自己派生。
-
-
----
-
-## D. 股指期权：只做 CFFEX 的 3 条主线
-
-推荐：
-
-- `IO` 沪深300股指期权
-    
-- `HO` 上证50股指期权
-    
-- `MO` 中证1000股指期权
-    
-
-中金所官网当前产品页明确包含沪深300股指期权、中证1000股指期权、上证50股指期权这三类权益类期权产品。([中国金融期货交易所](https://www.cffex.com.cn/cn/index.html?utm_source=chatgpt.com "中国金融期货交易所"))
-
-工程上分两张表：
-
-- `cffex_opt_basic`
-    
-- `cffex_opt_daily`
-    
-
-`opt_basic` 给合约维表；`opt_daily` 给交易事实表。Tushare 文档显示，`opt_basic` 提供 `ts_code`、`exchange`、`name`、`opt_code`、`call_put`、`exercise_type`、`exercise_price`、`maturity_date`、`list_date`、`delist_date` 等字段；`opt_daily` 提供 `trade_date`、`pre_settle`、`open/high/low/close`、`settle`、`vol`、`amount`、`oi` 等字段，而且单次最大 15000 条，支持按代码或按日期提取。([Tushare](https://tushare.pro/document/2?doc_id=158&utm_source=chatgpt.com "Tushare数据"))
-
-### 1. 股指期权的核心设计原则
-
-**第一，先 basic，后 daily。**  
-期权 universe 不是“指数代码集合”，而是“合约集合”。如果你没有先把 `opt_basic` 拉下来，你根本不知道某一天活跃的合约有哪些、它们的行权价是多少、到期日是什么、看涨看跌如何区分。
-
-**第二，option 的 raw 层必须是 contract-first，而不是 date-first。**  
-股票日线可以“按交易日扫全市场”，因为 universe 相对稳定；股指期权不行。期权合约按到期月、行权价、看涨看跌迅速扩张，而且有上市/摘牌生命周期。  
-所以下载策略应该是：
-
-1. 先抓 `opt_basic(exchange='CFFEX')`
-    
-2. 依据 `list_date <= d <= delist_date` 生成某日活跃合约池
-    
-3. 对活跃池抓 `opt_daily`
-    
-4. 把合约维表和日线事实表解耦保存
-    
-
-**第三，原始层不做隐波、不做曲面。**  
-原始层只保留 Tushare 给的原始字段和抓取溯源；隐含波动率、期限结构、偏度、跨式价格等都应该留到 silver/gold 层。
-
-### 2. 建议的数据模型
-
-#### `dim_option_contract`
-
-主键：
-
-- `ts_code`
-    
-
-核心字段：
-
-- `ts_code`
-    
-- `exchange`
-    
-- `name`
-    
-- `opt_code`
-    
-- `opt_type`
-    
-- `call_put`
-    
-- `exercise_type`
-    
-- `exercise_price`
-    
-- `s_month`
-    
-- `maturity_date`
-    
-- `list_price`
-    
-- `list_date`
-    
-- `delist_date`
-    
-- `last_edate`
-    
-- `last_ddate`
-    
-- `quote_unit`
-    
-- `min_price_chg`
-    
-- `fetched_at`
-    
-- `source_api`
-    
-- `source_params`
-    
-- `snapshot_id`
-    
-
-用途：
-
-- 生成活跃合约池
-    
-- 给期权链做维度补充
-    
-- 给后续隐波和到期结构派生提供 contract metadata
-    
-
-#### `fact_option_daily`
-
-主键：
-
-- `ts_code`
-    
-- `trade_date`
-    
-
-核心字段：
-
-- `ts_code`
-    
-- `trade_date`
-    
-- `exchange`
-    
-- `pre_settle`
-    
-- `pre_close`
-    
-- `open`
-    
-- `high`
-    
-- `low`
-    
-- `close`
-    
-- `settle`
-    
-- `vol`
-    
-- `amount`
-    
-- `oi`
-    
-- `fetched_at`
-    
-- `source_api`
-    
-- `source_params`
-    
-
-用途：
-
-- 构成期权日线事实表
-    
-- 与 `dim_option_contract` join 后形成每日期权链
-    
-
-### 3. 建议的下载任务设计
-
-#### `cffex_opt_basic`
-
-- `fetch_mode = "snapshot"`
-    
-- `api_name = "opt_basic"`
-    
-- 参数：
-    
-    - `exchange="CFFEX"`
-        
-- 输出：
-    
-    - `raw/options/cffex_opt_basic/snapshot_date=YYYYMMDD/part-000.parquet`
-        
-
-这张表建议每次都保留“全量快照”，不要直接覆盖旧文件。因为合约信息会变，快照本身就是溯源的一部分。
-
-#### `cffex_opt_daily`
-
-- `fetch_mode = "ts_code_range"`
-    
-- `api_name = "opt_daily"`
-    
-
-任务生成方式建议为：
-
-- 先从最新 `cffex_opt_basic` 快照里筛出合约
-    
-- 对每个 `ts_code` 按月或季度切时间窗
-    
-- 每个任务：
-    
-    - `ts_code`
-        
-    - `start_date`
-        
-    - `end_date`
-        
-- 如果行数超限，再分页 offset
-    
-
-为什么不用 `trade_date` 粒度扫全市场？  
-因为 `opt_daily` 支持按代码和时间提取，而且股指期权合约集合相对可控；你只做 CFFEX 三大股指期权，按合约切更符合期权生命周期逻辑，也更利于断点续跑。`opt_daily` 官方文档也明确支持 `ts_code`、`trade_date`、`start_date`、`end_date` 和 `exchange` 参数。([Tushare](https://tushare.pro/document/2?doc_id=159&utm_source=chatgpt.com "Tushare数据"))
-
-### 4. 股指期权的验证规则
-
-#### 结构验证
-
-- `opt_basic` 必须包含：
-    
-    - `ts_code`
-        
-    - `call_put`
-        
-    - `exercise_price`
-        
-    - `maturity_date`
-        
-    - `list_date`
-        
-    - `delist_date`
-        
-- `opt_daily` 必须包含：
-    
-    - `ts_code`
-        
-    - `trade_date`
-        
-    - `close`
-        
-    - `settle`
-        
-    - `oi`
-        
-
-#### 生命周期验证
-
-- 任意 `fact_option_daily.trade_date` 必须满足：
-    
-    - `list_date <= trade_date <= delist_date`
-        
-- 如果出现越界记录，标为数据异常，进入 verify report
-    
-
-#### 横截面验证
-
-对每个交易日，按底层合约、到期月和 `call_put` 分组，检查：
-
-- 是否存在明显不合理的 strike 缺口
-    
-- 是否出现 `oi<0`、`vol<0`
-    
-- 是否同一 `ts_code + trade_date` 重复
-    
-
-### 5. 股指期权后续派生，但不进入第一期下载范围
-
-后续可扩展但第一期不做：
-
-- 每日 option chain 宽表
-    
-- ATM/OTM 标识
-    
-- 隐含波动率
-    
-- 到期结构曲线
-    
-- skew / term structure 因子
-    
-
----
-
-## E. 宏观数据：只做少量高价值序列，统一成长表
-
-你当前“宏观数据”目录里列了 GDP、CPI、PPI、社融、货币供应量、PMI、外汇、黄金等，但目录边界还不够干净。后续应把真正的宏观序列和市场交易型数据拆开。
-
-第一期建议只做以下宏观序列：
-
-- `cn_gdp`
-    
-- `cn_cpi`
-    
-- `cn_ppi`
-    
-- `cn_m`
-    
-- `cn_sf`
-    
-- `cn_pmi`
-    
-
-其中：
-
-- `cn_gdp` 是季度序列，单次可取全量，参数是 `q/start_q/end_q`。([Tushare](https://tushare.pro/document/2?doc_id=227&utm_source=chatgpt.com "GDP数据 - Tushare"))
-    
-- `cn_cpi` 是月度序列，参数是 `m/start_m/end_m`。([Tushare](https://tushare.pro/document/2?doc_id=228&utm_source=chatgpt.com "Tushare数据"))
-    
-- `cn_ppi` 与 `cn_cpi` 同属月度宏观序列，参数形态相近。([Tushare](https://tushare.pro/document/2?doc_id=228&utm_source=chatgpt.com "Tushare数据"))
-    
-
-### 1. 宏观设计原则
-
-**第一，宏观不是交易日面板，而是 period 序列。**  
-不要把 GDP/CPI/PPI 当成股票日线那样“按交易日抓”。它们天然是月频/季频，任务应按 `period` 构造。
-
-**第二，宏观要从一开始就引入 as-of 语义。**  
-单纯存 period 值不够。研究和回测中，真正重要的是某个交易日市场当时能看到什么，所以要保留：
-
-- `period`
-    
-- `release_date`
-    
-- `asof_date`
-    
-- `fetched_at`
-    
-
-即便 Tushare 接口本身没有总是直接给完整发布时间字段，你也要在工程层预留这些字段，后续可补充发布日历。
-
-**第三，宏观建议统一成长表。**  
-不要 GDP 一张宽表、CPI 一张宽表、PPI 一张宽表直接散落在 feature 层。raw 层可以按接口分别落，但 silver 层建议统一成长表模型。
-
-### 2. 建议的数据模型
-
-#### raw 层
-
-每个接口单独保存：
-
-- `raw/macro/cn_gdp/...`
-    
-- `raw/macro/cn_cpi/...`
-    
-- `raw/macro/cn_ppi/...`
-    
-- `raw/macro/cn_m/...`
-    
-- `raw/macro/cn_sf/...`
-    
-- `raw/macro/cn_pmi/...`
-    
-
-#### silver 层统一表：`fact_macro_series`
-
-建议字段：
-
-- `series_id`
-    
-- `series_name`
-    
-- `source_api`
-    
-- `frequency` (`M` / `Q`)
-    
-- `period`
-    
-- `value_type`
-    
-- `value`
-    
-- `unit`
-    
-- `release_date`
-    
-- `asof_date`
-    
-- `fetched_at`
-    
-- `source_params`
-    
-
-示例：
-
-|series_id|frequency|period|value_type|value|
-|---|---|---|---|---|
-|CN_GDP|Q|2024Q1|gdp|...|
-|CN_GDP|Q|2024Q1|gdp_yoy|...|
-|CN_CPI|M|202403|nt_yoy|...|
-|CN_CPI|M|202403|nt_mom|...|
-
-这样你后面做宏观特征、滞后项、as-of 对齐会简单很多。
-
-### 3. 宏观下载任务设计
-
-#### `macro_gdp`
-
-- `fetch_mode = "period_quarter"`
-    
-- `api_name = "cn_gdp"`
-    
-- 参数：
-    
-    - `start_q`
-        
-    - `end_q`
-        
-- 单次可全量，初始化时直接全历史
-    
-- 增量更新时每次拉最近 8 个季度即可，防止修订遗漏
-    
-
-#### `macro_cpi / macro_ppi / macro_money_supply / macro_social_financing / macro_pmi`
-
-- `fetch_mode = "period_month"`
-    
-- 参数：
-    
-    - `start_m`
-        
-    - `end_m`
-        
-- 初始化：全量
-    
-- 增量：滚动回拉最近 24 个月
-    
-
-为什么建议回拉？  
-因为宏观数据存在修订和补充字段，滚动覆盖最近若干期比“只拉最新一个月”更稳。
-
-### 4. 宏观验证规则
-
-- `period` 必须唯一到 `series_id + value_type`
-    
-- 月频格式必须是 `YYYYMM`
-    
-- 季频格式必须是 `YYYYQn`
-    
-- 不允许未来 period 出现在历史抓取中
-    
-- 同一 series 最近 N 期如果出现大面积空值，要告警
-    
-- 宏观表必须有 `fetched_at`，没有则视为 lineage 缺失
-    
-
----
-
-## F. 外汇与黄金：只保留少量典型资产，显式写明选择依据
-
-Tushare 的 `fx_obasic` 当前只覆盖 FXCM 交易商数据，分类很多，不只有货币对，还有指数、大宗商品、金属、加密货币和外汇篮子。`fx_daily` 是 GMT 日期，不是北京时间。([Tushare](https://tushare.pro/document/2?doc_id=178&utm_source=chatgpt.com "Tushare数据"))
-
-因此第一期不要“把外汇全下了”，而是选少量高信息密度标的。
-
-### 1. 推荐第一期标的
-
-#### 外汇货币对（FX）
-
-- `USDCNH`
-    
-- `USDJPY`
-    
-- `EURUSD`
-    
-- `GBPUSD`
-    
-
-#### 金属（METAL）
-
-- `XAUUSD`
-    
-
-#### 外汇篮子（FX_BASKET）
-
-- `USDOLLAR`
-    
-
-### 2. 选择理由
-
-- `USDCNH`：人民币相关风险和中国资产最直接
-    
-- `USDJPY`：全球风险偏好、套息交易敏感
-    
-- `EURUSD`：全球最核心货币对
-    
-- `GBPUSD`：补充欧美汇率结构
-    
-- `XAUUSD`：避险与美元镜像资产
-    
-- `USDOLLAR`：美元整体强弱代理
-    
-
-### 3. 数据模型
-
-#### `dim_fx_symbol`
-
-来自 `fx_obasic`：
-
-- `ts_code`
-    
-- `name`
-    
-- `classify`
-    
-- `exchange`
-    
-- `min_unit`
-    
-- `max_unit`
-    
-- `pip`
-    
-- `pip_cost`
-    
-- `trading_hours`
-    
-- `break_time`
-    
-- `fetched_at`
-    
-
-#### `fact_fx_daily`
-
-来自 `fx_daily`：
-
-- `ts_code`
-    
-- `trade_date` （GMT）
-    
-- `bid_open`
-    
-- `bid_close`
-    
-- `bid_high`
-    
-- `bid_low`
-    
-- `ask_open`
-    
-- `ask_close`
-    
-- `ask_high`
-    
-- `ask_low`
-    
-- `tick_qty`
-    
-- `exchange`
-    
-- `fetched_at`
-    
-
-### 4. 下载任务设计
-
-#### `fx_basic`
-
-- `fetch_mode = "snapshot"`
-    
-- `api_name = "fx_obasic"`
-    
-- 初始化一次全量拉取
-    
-- silver 层再按 `classify in ('FX','METAL','FX_BASKET')` 和代码白名单筛
-    
-
-#### `fx_daily`
-
-- `fetch_mode = "ts_code_range"`
-    
-- `api_name = "fx_daily"`
-    
-- 每个 `ts_code` 按年或半年切窗口
-    
-
-注意：  
-`fx_daily.trade_date` 是 GMT 日期，比北京时间晚一天。多资产对齐时必须显式处理时区，不然会和 A 股交易日错位。([Tushare](https://tushare.pro/document/2?doc_id=179&utm_source=chatgpt.com "Tushare数据"))
-
-### 5. 验证规则
-
-- `ts_code + trade_date` 唯一
-    
-- `ask_*` 不应系统性小于 `bid_*`
-    
-- `tick_qty` 不应为负
-    
-- 与 A 股/指数做对齐时必须通过时区适配器，不允许直接裸 join
-    
-
----
-
-## G. catalog 与 universe 管理：先“看 basic”，再固定白名单
-
-你特别强调“指数有几千只，要先 basic 看一下有什么，再推荐和选择”，这个要求非常对。  
-所以工程上要新增一个通用 catalog 作业，而不是把 universe 写死在脚本里。
-
-### 1. 建议新增的 catalog 作业
-
-- `jobs/catalog_dump.py`
-    
-
-输出：
-
-- `catalog/index_basic_full.parquet`
-    
-- `catalog/fut_basic_cffex.parquet`
-    
-- `catalog/opt_basic_cffex.parquet`
-    
-- `catalog/fx_obasic_full.parquet`
-    
-
-### 2. 建议的白名单配置文件
-
-```yaml
-core_indices:
-  - 000001.SH
-  - 399001.SZ
-  - 000300.SH
-  - 000016.SH
-  - 000905.SH
-  - 000852.SH
-  - 399006.SZ
-  - 000688.SH
-
-core_index_dailybasic_supported:
-  - 000001.SH
-  - 399001.SZ
-  - 000016.SH
-  - 000905.SH
-  - 399006.SZ
-
-core_cffex_futures_prefix:
-  - IF
-  - IH
-  - IC
-  - IM
-
-core_cffex_options_prefix:
-  - IO
-  - HO
-  - MO
-
-core_fx_symbols:
-  - USDCNH
-  - USDJPY
-  - EURUSD
-  - GBPUSD
-  - XAUUSD
-  - USDOLLAR
 ```
 
-后续 universe 改动只动配置，不动下载逻辑。
+职责：
 
----
+- 线程池执行；
+- 分页抓取；
+- 重试；
+- sidecar lineage；
+- 写 raw parquet；
+- 更新 SQLite state；
+- 发出 progress 事件；
+- 失败任务进入 dead letter。
 
-## H. 溯源与审计：必须成为框架默认能力
+***
 
-你前面强调“不同参数和多样情况的全面处理和溯源功能的保留”，这部分必须做成默认行为，而不是可选功能。
+# 七、SQLite 控制平面设计
 
-### 1. 每个原始文件的 sidecar metadata
+建议创建 `data/meta/control.sqlite3`，并在第一次启动时执行：
 
-每个 parquet 文件旁边生成一个 `.meta.json`：
+```
+PRAGMA journal_mode=WAL;
+PRAGMA synchronous=NORMAL;
+PRAGMA foreign_keys=ON;
 
-```json
+```
+
+WAL 可改善并发读写的实用性；这里不需要追求数据库服务器级别能力，只需要稳定记录元数据即可。([SQLite](https://www.sqlite.org/wal.html "https://www.sqlite.org/wal.html"))
+
+建议表结构如下：
+
+```
+CREATE TABLE IF NOT EXISTS dataset_watermark (
+    dataset_name      TEXT PRIMARY KEY,
+    watermark_value   TEXT,
+    watermark_col     TEXT,
+    updated_at        TEXT NOT NULL,
+    note              TEXT
+);
+
+CREATE TABLE IF NOT EXISTS job_run (
+    job_id            TEXT PRIMARY KEY,
+    job_type          TEXT NOT NULL,
+    dataset_name      TEXT,
+    started_at        TEXT NOT NULL,
+    finished_at       TEXT,
+    status            TEXT NOT NULL,
+    total_tasks       INTEGER DEFAULT 0,
+    done_tasks        INTEGER DEFAULT 0,
+    failed_tasks      INTEGER DEFAULT 0,
+    extra_json        TEXT
+);
+
+CREATE TABLE IF NOT EXISTS task_run (
+    task_key          TEXT PRIMARY KEY,
+    job_id            TEXT NOT NULL,
+    dataset_name      TEXT NOT NULL,
+    params_json       TEXT NOT NULL,
+    params_hash       TEXT NOT NULL,
+    started_at        TEXT,
+    finished_at       TEXT,
+    status            TEXT NOT NULL,
+    rows_written      INTEGER DEFAULT 0,
+    parquet_path      TEXT,
+    retry_count       INTEGER DEFAULT 0,
+    error_message     TEXT,
+    FOREIGN KEY(job_id) REFERENCES job_run(job_id)
+);
+
+CREATE TABLE IF NOT EXISTS file_manifest (
+    file_path         TEXT PRIMARY KEY,
+    dataset_name      TEXT NOT NULL,
+    task_key          TEXT,
+    file_kind         TEXT NOT NULL,   -- raw_part/raw_snapshot/silver_export/verify_report
+    row_count         INTEGER,
+    file_size         INTEGER,
+    file_hash         TEXT,
+    created_at        TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS verify_run (
+    verify_id         TEXT PRIMARY KEY,
+    dataset_name      TEXT NOT NULL,
+    started_at        TEXT NOT NULL,
+    finished_at       TEXT,
+    status            TEXT NOT NULL,
+    duplicates_cnt    INTEGER DEFAULT 0,
+    missing_cnt       INTEGER DEFAULT 0,
+    invalid_cnt       INTEGER DEFAULT 0,
+    report_json_path  TEXT,
+    report_md_path    TEXT
+);
+
+CREATE TABLE IF NOT EXISTS dead_letter (
+    dlq_id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    dataset_name      TEXT NOT NULL,
+    task_key          TEXT NOT NULL,
+    params_json       TEXT NOT NULL,
+    error_message     TEXT NOT NULL,
+    created_at        TEXT NOT NULL,
+    replay_status     TEXT DEFAULT 'pending'
+);
+
+```
+
+所有更新操作使用 SQLite UPSERT，例如：
+
+```
+INSERT INTO dataset_watermark(dataset_name, watermark_value, watermark_col, updated_at)
+VALUES (?, ?, ?, ?)
+ON CONFLICT(dataset_name) DO UPDATE SET
+  watermark_value = excluded.watermark_value,
+  watermark_col   = excluded.watermark_col,
+  updated_at      = excluded.updated_at;
+
+```
+
+这样做的好处是：控制平面不会再依赖一个脆弱的 `_manifest.json`，而是有真正可查询、可回放、可统计的状态库。`download_trade_date_generic.py` 当前的 `StateManifest` 适合作为过渡兼容层，但不应该继续当主状态源。([GitHub](https://raw.githubusercontent.com/789453/tushare_data_download_and_compact/main/src_data_download/ts_download_utils.py "raw.githubusercontent.com"))
+
+***
+
+# 八、DuckDB 仓库设计
+
+建议使用一个持久化的 `data/meta/warehouse.duckdb` 文件。DuckDB 官方文档明确支持通过指定文件路径创建持久数据库。([DuckDB Blobs](https://blobs.duckdb.org/docs/duckdb-docs.pdf "https://blobs.duckdb.org/docs/duckdb-docs.pdf"))
+
+建议 schema：
+
+```
+CREATE SCHEMA IF NOT EXISTS raw_ext;
+CREATE SCHEMA IF NOT EXISTS silver;
+CREATE SCHEMA IF NOT EXISTS audit;
+
+```
+
+## 8.1 raw\_ext
+
+不真正存表，而是用 view 或临时 relation 指向 raw parquet：
+
+- `raw_ext.stock_daily_parts`
+- `raw_ext.index_daily_parts`
+- `raw_ext.cffex_fut_mapping_parts`
+- `raw_ext.cffex_opt_basic_snapshots`
+- `raw_ext.macro_cn_gdp_parts`
+
+## 8.2 silver
+
+存标准事实表/维表：
+
+- `silver.fact_stock_daily`
+- `silver.fact_stock_daily_basic`
+- `silver.fact_index_daily`
+- `silver.fact_index_dailybasic`
+- `silver.dim_index_basic`
+- `silver.dim_fut_contract`
+- `silver.fact_fut_daily`
+- `silver.bridge_fut_mapping`
+- `silver.dim_option_contract`
+- `silver.fact_option_daily`
+- `silver.dim_fx_symbol`
+- `silver.fact_fx_daily`
+- `silver.fact_macro_gdp`
+- `silver.fact_macro_cpi`
+- `silver.fact_macro_ppi`
+
+## 8.3 写入策略
+
+- 初始化：`CREATE TABLE AS SELECT ... FROM read_parquet(...)`
+- 增量：`MERGE INTO silver.xxx USING stage ON pk ... WHEN MATCHED THEN UPDATE WHEN NOT MATCHED THEN INSERT`
+- 导出：`COPY (SELECT * FROM silver.xxx) TO '...parquet' (FORMAT parquet)`
+
+DuckDB 的 `MERGE INTO` 正是这里最关键的升级点：你不必继续“先把所有旧 parquet 读成 pandas，再 drop\_duplicates，再整体重写”。你可以先把 raw part 读入 DuckDB stage，然后做真正意义上的增量 merge。([DuckDB](https://duckdb.org/docs/current/sql/statements/merge_into.html "https://duckdb.org/docs/current/sql/statements/merge_into.html"))
+
+***
+
+# 九、数据集注册表设计
+
+README 已经按 `fetch_mode` 把各类数据集梳理清楚了，下面我把它正式收敛成你这次要实现的第一批 registry。([GitHub](https://github.com/789453/tushare_data_download_and_compact/blob/main/README.md "https://github.com/789453/tushare_data_download_and_compact/blob/main/README.md"))
+
+## 9.1 股票（保留现有主线）
+
+- `stock_daily` → `daily` → `trade_date`
+- `stock_daily_basic` → `daily_basic` → `trade_date`
+- `stock_moneyflow` → `moneyflow` → `trade_date`
+- `stock_limit` → `stk_limit` → `trade_date`
+- `stock_suspend` → `suspend_d` → `trade_date`
+
+这部分直接迁入新框架，不改数据语义。
+
+## 9.2 指数
+
+- `index_basic_selected` → `index_basic` → `snapshot`
+- `index_daily_selected` → `index_daily` → `ts_code_range`
+- `index_dailybasic_supported` → `index_dailybasic` → `ts_code_range`
+
+`index_daily` 单次最多 8000 行，适合按 `ts_code + 时间窗口`；`index_dailybasic` 只覆盖少数大盘指数，不是所有指数都可用，因此必须单独维护支持池。([Tushare](https://tushare.pro/document/2?doc_id=95 "https://tushare.pro/document/2?doc_id=95"))
+
+## 9.3 CFFEX 期货
+
+- `cffex_fut_basic` → `fut_basic(exchange='CFFEX')` → `snapshot`
+- `cffex_fut_mapping_selected` → `fut_mapping` → `ts_code_range`
+- `cffex_fut_daily_selected` → `fut_daily` → `ts_code_range`
+
+Tushare 期货文档明确区分了 `fut_basic`（合约信息）、`fut_daily`（日线）、`fut_mapping`（主力/连续到月合约映射）；并明确给出了 CFFEX 连续代码的命名规则，例如 `IF.CFX`、`IFL.CFX`、`IFL1.CFX`、`IFL2.CFX`、`IFL3.CFX`。你的上传白名单第一段应全部归入这个域。 ([Tushare](https://tushare.pro/document/2?doc_id=135 "https://tushare.pro/document/2?doc_id=135"))
+
+## 9.4 CFFEX 期权
+
+- `cffex_opt_basic_full` → `opt_basic(exchange='CFFEX')` → `snapshot`
+- `cffex_opt_daily` → `opt_daily(exchange='CFFEX')` → `trade_date` 或 `ts_code_range`
+
+`opt_basic` 是合约维表，建议保留全量快照；`opt_daily` 单次最大 15000 条，既可以按交易日，也可以按代码窗口，但为了统一你当前“10 个 dataset 并发 + 每 dataset 10 个 task”的模型，建议实现为 `CodeRangeTaskBuilder`，并在日更模式下允许切成“最近 N 天 + 代码桶”。([Tushare](https://tushare.pro/document/2?doc_id=158 "https://tushare.pro/document/2?doc_id=158"))
+
+## 9.5 外汇
+
+- `fx_basic_selected` → `fx_obasic` → `snapshot`
+- `fx_daily_selected` → `fx_daily` → `ts_code_range`
+
+`fx_obasic` 当前是 FXCM 交易商海外外汇/CFD/商品/金属等基础信息，一次可全量提取；你的第二组白名单 `GBPUSD.FXCM`、`USDCNH.FXCM`、`USDJPY.FXCM`、`USOil.FXCM`、`XAGUSD.FXCM` 应从这张快照中本地筛出。README 也提示 `fx_daily.trade_date` 是 GMT，需要显式做时区适配。 ([Tushare](https://tushare.pro/document/2?doc_id=178 "https://tushare.pro/document/2?doc_id=178"))
+
+## 9.6 宏观
+
+- `macro_cn_gdp` → `cn_gdp` → `period_quarter`
+- `macro_cn_cpi` → `cn_cpi` → `period_month`
+- `macro_cn_ppi` → `cn_ppi` → `period_month`
+
+这三类一次就能拿完历史，全量初始化和滚动回拉都很适合用 PeriodTaskBuilder。官方文档也明确给出了 `start_q/end_q` 与 `start_m/end_m` 参数形式。([Tushare](https://tushare.pro/document/2?doc_id=227 "https://tushare.pro/document/2?doc_id=227"))
+
+***
+
+# 十、Universe 与配置文件
+
+不要把白名单直接写死在数据集 Python 文件里。README 已经给了配置化方向。([GitHub](https://github.com/789453/tushare_data_download_and_compact/blob/main/README.md "https://github.com/789453/tushare_data_download_and_compact/blob/main/README.md"))
+
+建议建立 `config/universe.yaml`：
+
+```
+indices_selected:
+  - 000001.SH
+  - 399001.SZ
+  - 399300.SZ
+  - 399006.SZ
+  - 000699.SH
+  - 399852.SZ
+  - 000905.SH
+  - 399405.SZ
+  - 399406.SZ
+  - 399407.SZ
+  - 399408.SZ
+  - 399409.SZ
+  - CN5140.CNI
+  - CN5141.CNI
+  - CN6138.CNI
+  - CN6139.CNI
+  - CN6140.CNI
+  - CN6141.CNI
+  - CSPSADRP.CI
+  - CN2372.CNI
+  - CN2373.CNI
+  - CN2374.CNI
+  - CN2375.CNI
+  - CN2376.CNI
+  - CN2377.CNI
+  - CN2602.CNI
+  - CN2604.CNI
+  - CN2626.CNI
+  - CN2627.CNI
+
+cffex_mapping_selected:
+  - TSL.CFX
+  - TSL1.CFX
+  - TSL2.CFX
+  - IF.CFX
+  - IH.CFX
+  - IC.CFX
+  - IM.CFX
+  - IML.CFX
+  - IML1.CFX
+  - IML2.CFX
+  - IFL.CFX
+  - IFL1.CFX
+  - IFL2.CFX
+  - IFL3.CFX
+  - ICL.CFX
+  - ICL1.CFX
+  - ICL2.CFX
+  - ICL3.CFX
+  - IHL.CFX
+  - IHL1.CFX
+  - IHL2.CFX
+  - IHL3.CFX
+  - IML3.CFX
+
+fx_selected:
+  - GBPUSD.FXCM
+  - USDCNH.FXCM
+  - USDJPY.FXCM
+  - USOil.FXCM
+  - XAGUSD.FXCM
+
+```
+
+`opt_basic_cffex` 不设白名单，直接全量。以上集合正是你上传要求的可机器消费版。
+
+***
+
+# 十一、增量更新与稳定区策略
+
+你特别强调：不要把文件拆得太细，要支持自动更新，同时认为 2016 年 3 月以前大体稳定。这个要求非常适合三层架构。
+
+## 11.1 统一原则
+
+- **历史初始化**：全量抓一次，进入 raw + silver
+- **日常增量**：只更新非稳定区，并做滚动回看
+- **验证后合并**：raw part 不直接等于主文件，要先验证再 merge
+- **不按天生成无穷多主文件**：raw 可分片，silver 维持稳定表
+
+## 11.2 建议水位策略
+
+### 股票/指数/期货/期权/外汇日线
+
+- `stable_before = 20160301`
+- 常规更新：
+  - `start = max(watermark - lookback_days, stable_before)`
+  - `lookback_days = 30` 默认
+- 每周一次深回刷：
+  - `lookback_days = 120`
+
+### 宏观
+
+- `macro_cn_gdp`: 每次回拉最近 8 个季度
+- `macro_cn_cpi` / `macro_cn_ppi`: 每次回拉最近 24 个月
+
+这与 README 对宏观回拉最近若干季度/月的建议一致，也符合 Tushare 接口“单次基本可以提完”的特性。([GitHub](https://github.com/789453/tushare_data_download_and_compact/blob/main/README.md "https://github.com/789453/tushare_data_download_and_compact/blob/main/README.md"))
+
+## 11.3 快照类
+
+- `index_basic` / `fut_basic` / `opt_basic` / `fx_obasic`
+- 每次全量抓取
+- raw 层保留快照
+- silver 层只保留 `is_latest=1` 当前版本，或做 SCD2（第二阶段再上）
+
+## 11.4 你当前旧逻辑的替换
+
+当前 `update_raw_data.py` 的逻辑是：从主 parquet 找最大日期，然后从这个日期继续跑。这必须升级为“watermark + lookback”模型，不再直接依赖“主文件最大日期”这一种判据。([GitHub](https://raw.githubusercontent.com/789453/tushare_data_download_and_compact/main/src_data_download/update_raw_data.py "raw.githubusercontent.com"))
+
+***
+
+# 十二、并发、限流、下载稳健性
+
+当前脚本使用 `ThreadPoolExecutor`。这可以保留，不必强行改 `asyncio`。原因不是“asyncio 不行”，而是当前 Tushare SDK 调用方式本身就是阻塞式，线程池更直接。现有代码也已经是这个模型。([GitHub](https://raw.githubusercontent.com/789453/tushare_data_download_and_compact/main/src_data_download/download_trade_date_generic.py "raw.githubusercontent.com"))
+
+但要从“脚本内线程池”升级为“两级并发 + 全局限流”：
+
+- **dataset-level workers = 10**
+- **task-level workers = 10**
+- **global rate limiter** 以 `api_name` 为粒度配置
+
+建议 `config/settings.toml`：
+
+```
+[concurrency]
+max_dataset_workers = 10
+default_task_workers = 10
+
+[rate_limit.daily]
+rpm = 120
+
+[rate_limit.index_daily]
+rpm = 60
+
+[rate_limit.fut_basic]
+rpm = 80
+
+[rate_limit.fut_daily]
+rpm = 120
+
+[rate_limit.fut_mapping]
+rpm = 60
+
+[rate_limit.opt_daily]
+rpm = 60
+
+[rate_limit.macro_default]
+rpm = 30
+
+```
+
+这里的具体数值不是死规则，而是可配置上限。Tushare 官方文档确实明确给出了一些期货接口的每分钟频次示例，也说明 `index_daily`、`opt_daily` 等有单次条数和权限/流控约束，所以并发必须叠加限流器。([Tushare](https://tushare.pro/document/2?doc_id=134 "https://tushare.pro/document/2?doc_id=134"))
+
+***
+
+# 十三、文件落盘与 lineage 规则
+
+每个 raw part 必须同时产生 sidecar metadata，而不是只留 parquet。
+
+建议 raw 落盘命名：
+
+```
+data/raw/index/index_daily_selected/ts_code=399300.SZ/year=2024/399300.SH_20240101_20241231_0001.parquet
+data/raw/index/index_daily_selected/ts_code=399300.SZ/year=2024/399300.SH_20240101_20241231_0001.parquet.meta.json
+
+```
+
+sidecar 内容建议：
+
+```
 {
-  "dataset": "cffex_opt_daily",
-  "api_name": "opt_daily",
-  "task_key": "sha1(...)",
-  "request_params": {
-    "ts_code": "IO2406-C-3500.CFFEX",
-    "start_date": "20240401",
-    "end_date": "20240430",
-    "offset": 0,
-    "limit": 15000
-  },
-  "fetched_at": "2026-04-14T23:00:00+08:00",
-  "rows": 18,
-  "columns": ["ts_code", "trade_date", "open", "high", "..."],
-  "code_version": "git_sha",
-  "checksum": "sha256:..."
+  "dataset_name": "index_daily_selected",
+  "task_key": "sha1...",
+  "params_json": {"ts_code":"399300.SZ","start_date":"20240101","end_date":"20241231"},
+  "api_name": "index_daily",
+  "rows": 253,
+  "columns": ["ts_code","trade_date","close","open","high","low", "..."],
+  "fetched_at": "2026-04-22T11:32:11+08:00",
+  "source": "tushare",
+  "part_seq": 1,
+  "file_hash": "sha256...",
+  "status": "done"
 }
+
 ```
 
-### 2. state 存储统一成 manifest
+这条规则要统一到所有数据集。这样验证和审计时不再靠“猜文件名”，而是靠明确的 manifest + sidecar + SQLite file\_manifest。
 
-不要让新数据集继续无限生成 `_state/*.json` 小文件。  
-统一用：
+***
 
-- `state/stock_daily.state.json`
-    
-- `state/index_daily.state.json`
-    
-- `state/cffex_fut_daily.state.json`
-    
-- `state/cffex_opt_daily.state.json`
-    
-- `state/macro_gdp.state.json`
-    
+# 十四、日志与进度展示
 
-记录：
-
-- `task_key`
-    
-- `dataset`
-    
-- `params_hash`
-    
-- `status`
-    
-- `rows`
-    
-- `updated_at`
-    
-- `latest_file`
-    
-
-### 3. 统一任务键
+当前仓库已经有一个简单 `Progress` 类，但需要升级成标准日志系统。README 也把“进度条、结果展示、验证报告”列为框架能力之一；Python 官方 `logging` 模块就是通用日志设施，而 Rich 的 `Progress` 能很好地展示多任务并发进度。([GitHub](https://github.com/789453/tushare_data_download_and_compact "https://github.com/789453/tushare_data_download_and_compact"))
 
 建议：
 
-```text
-task_key = sha1(dataset_name + canonical_json(request_params))
+## 14.1 日志
+
+使用 Python `logging`，按 logger namespace 分层：
+
+- `tdc.cli`
+- `tdc.runner`
+- `tdc.dataset.index_daily`
+- `tdc.dataset.fut_mapping`
+- `tdc.verify`
+- `tdc.compact`
+
+输出：
+
+- 控制台：INFO
+- 文件：DEBUG
+- 审计日志：JSON lines
+
+建议日志文件：
+
+- `logs/app.log`
+- `logs/error.log`
+- `logs/jobs/<job_id>.jsonl`
+
+## 14.2 进度条
+
+控制台使用 Rich `Progress`：
+
+- 顶层展示 dataset 任务总进度
+- 子层展示当前 dataset 内 task 进度
+- 可显示已完成数、失败数、累计行数、速率、ETA
+
+Rich 文档明确支持多任务进度展示，适合线程或进程并发场景。([Rich Documentation](https://rich.readthedocs.io/en/latest/progress.html "https://rich.readthedocs.io/en/latest/progress.html"))
+
+## 14.3 结果报告
+
+每次 job 结束输出：
+
+- `job_summary.json`
+- `job_summary.md`
+
+至少包括：
+
+- dataset
+- started\_at / finished\_at
+- tasks\_total / success / failed
+- rows\_written
+- raw\_files
+- silver\_tables\_updated
+- verify\_status
+
+***
+
+# 十五、测试体系
+
+这是必须保留并扩充的。当前仓库已经有 `pytest.ini`，并把 `tests` 设为测试目录，文件名模式为 `test_*.py`；同时 `tests/unit`、`tests/integration`、`tests/contract` 已经存在。([GitHub](https://github.com/789453/tushare_data_download_and_compact/blob/main/pytest.ini "tushare_data_download_and_compact/pytest.ini at main · 789453/tushare_data_download_and_compact · GitHub"))
+
+## 15.1 当前测试现状
+
+现有测试已经在表达正确方向：
+
+- `test_dataset_spec.py`：校验 `DatasetSpec.validate()`
+- `test_task_key.py`：校验 task key 对参数字典顺序稳定
+- `test_runner_fake_pro.py`：用 FakePro 测 Runner 写 parquet 和 sidecar
+- `test_dataset_specs_contract.py`：遍历 `src_data_download.datasets` 中的 `SPEC` 并做契约校验\
+  但这些测试引用的 `src_data_download.core.*` 和 `src_data_download.datasets.*` 路径，与当前 `src_data_download` 可见目录不一致，这正说明主实现需要向这些测试对齐，而不是把测试删掉。([GitHub](https://raw.githubusercontent.com/789453/tushare_data_download_and_compact/main/tests/unit/test_dataset_spec.py "raw.githubusercontent.com"))
+
+## 15.2 改造后的测试分层
+
+### unit
+
+- `DatasetSpec.validate`
+- `Task.task_key`
+- `TaskBuilder` 各种边界
+- `SQLiteMetaStore` upsert / resume
+- `DuckDBStore.merge_incremental`
+- `ParquetSink.write_with_sidecar`
+- `get_watermark`
+- `timezone adapter`
+
+### contract
+
+- 所有 `datasets/*.py` 中的 `SPEC` 均可 `validate()`
+- 所有 `pk_cols` 必属 required/optional fields
+- 所有 `fetch_mode` 与参数 builder 匹配
+- 所有 `selected_codes` 如存在则非空且去重
+
+### integration
+
+- FakePro 跑完整 runner
+- SQLite + DuckDB + Parquet 联调
+- raw → silver → export 全链路
+
+### smoke
+
+真实 Tushare 小样本：
+
+- `index_daily_selected`: `399300.SZ` 最近 5 日
+- `cffex_fut_mapping_selected`: `IF.CFX` 最近 5 日
+- `cffex_opt_basic_full`: `exchange='CFFEX'`
+- `fx_daily_selected`: `USDCNH.FXCM` 最近 10 日
+- `macro_cn_gdp`: 最近 4 季度
+
+### regression
+
+保留小型 golden parquet / golden duckdb snapshot，对比：
+
+- row count
+- pk unique count
+- max date
+- column set
+- checksum
+
+这也与 README 对 unit / contract / smoke / regression 的分层建议一致。([GitHub](https://github.com/789453/tushare_data_download_and_compact/blob/main/README.md "https://github.com/789453/tushare_data_download_and_compact/blob/main/README.md"))
+
+***
+
+# 十六、关键文件逐一改造方案
+
+下面是最重要的“文件级别改造清单”。
+
+## 16.1 `src_data_download/ts_download_utils.py`
+
+**处理方式：拆分重构，保留少量兼容函数。**
+
+当前它同时承担重试、交易日历、parquet 写入、manifest、最大日期探测、compact、progress 等多种职责。([GitHub](https://raw.githubusercontent.com/789453/tushare_data_download_and_compact/main/src_data_download/ts_download_utils.py "raw.githubusercontent.com"))
+
+### 保留到兼容层的函数
+
+- `get_tushare_token`
+- `load_tushare_pro`
+- `retry_call`
+- `write_parquet_atomic`
+
+### 迁移出去
+
+- `StateManifest` → `core/sqlite_meta.py`
+- `Progress` → `core/progress.py`
+- `compact_parquet_files_to_single` → `core/duckdb_store.py`
+- `get_parquet_max_date` → `core/watermark.py`
+- `iter_trade_dates_yyyymmdd` → `adapters/calendars.py`
+
+### 新要求
+
+- 不再把所有 `int64/int32/float64` 一律转成 `float32`
+- 去重主键不再默认写死为 `["ts_code","trade_date"]`
+- 工具函数必须无副作用、可单测
+
+## 16.2 `src_data_download/download_trade_date_generic.py`
+
+**处理方式：保留 compat wrapper，主逻辑迁入** **`Runner + TradeDateTaskBuilder`。**
+
+当前问题是它把任务模型写死成 `trade_date + offset`。([GitHub](https://raw.githubusercontent.com/789453/tushare_data_download_and_compact/main/src_data_download/download_trade_date_generic.py "raw.githubusercontent.com"))
+
+### 改法
+
+- 文件迁到 `compat/download_trade_date_generic.py`
+- 仅保留：
+  - 解析旧参数
+  - 构造相应的 `DatasetSpec`
+  - 调用新 `Runner.run_dataset()`
+
+### 不再保留的逻辑
+
+- `_manifest.json` 本地状态
+- 写死 `limit=6000`
+- 直接 `api(trade_date=d...)`
+- 直接以 out\_dir 作为状态依据
+
+## 16.3 `src_data_download/update_raw_data.py`
+
+**处理方式：完全重写，变成 compat wrapper；真正新入口是** **`jobs/update_incremental.py`。**
+
+当前它是 if/elif 分发器。([GitHub](https://raw.githubusercontent.com/789453/tushare_data_download_and_compact/main/src_data_download/update_raw_data.py "raw.githubusercontent.com"))
+
+### 新实现
+
+- 解析 `--datasets`
+- 从 `datasets.registry` 取 spec
+- 从 SQLite 取 watermark
+- 调 `TaskBuilder`
+- 调 `Runner`
+- 结束后触发 `compact_job` 与 `verify_job`
+
+### 删除旧逻辑
+
+- `main_file = raw_dir / f"{name}.parquet"` 这种主文件推断
+- 直接 `max_d = get_parquet_max_date(main_file)` 的单一续传逻辑
+- 每个 dataset 下载完立刻粗暴 compact
+
+## 16.4 `src_data_download/compact_raw_data.py`
+
+**处理方式：兼容入口保留，核心逻辑改成 DuckDB merge/export。**
+
+当前它通过搜索 `{name}_*parts`，备份旧主文件，然后把旧主文件和 parts 一起重新合成一个 parquet。([GitHub](https://raw.githubusercontent.com/789453/tushare_data_download_and_compact/main/src_data_download/compact_raw_data.py "raw.githubusercontent.com"))
+
+### 新实现
+
+- `jobs/compact_job.py`
+- 从 SQLite `file_manifest` 取本次待合并 raw parts
+- DuckDB 读取 raw parts → stage
+- 按 `DatasetSpec.pk_cols` 做 `MERGE INTO silver.table`
+- 导出 silver parquet
+- 记录 export 文件到 `file_manifest`
+
+### 兼容入口
+
+旧 `compact_raw_data.py` 只负责：
+
+```
+from src_data_download.jobs.compact_job import main
+
 ```
 
-这样：
-
-- 可幂等
-    
-- 可追溯
-    
-- 可重放
-    
-- verify 时能对账
-    
-
----
-
-## I. 测试体系：把“测试”升级成项目核心，而不是附属脚本
-
-这一部分是后半文档里最重要的，因为你明确要求“注重测试”。
-
-### 1. 单元测试（不打真实网络）
-
-覆盖对象：
-
-#### `core/`
-
-- `DatasetSpec`：合法性校验
-    
-- `TaskBuilder`：任务生成数量、边界日期、空 universe
-    
-- `Runner`：分页终止、重试逻辑、异常透传
-    
-- `StateStore`：幂等、重复更新、失败恢复
-    
-- `LineageWriter`：sidecar 内容完整性
-    
-
-#### `ts_download_utils` 拆分后的工具函数
-
-- `retry_call`
-    
-- `write_parquet_atomic`
-    
-- `get_parquet_max_date`
-    
-- 时间转换函数
-    
-- 目录创建与临时文件清理
-    
-
-### 2. 契约测试（接口参数级）
-
-每个 Tushare dataset 都要有参数契约测试：
-
-#### 示例
-
-- `stock_daily`：
-    
-    - 必须允许 `trade_date`
-        
-    - 支持 `start_date/end_date`
-        
-- `index_dailybasic`：
-    
-    - 不应假设支持任意指数
-        
-- `opt_basic`：
-    
-    - 必须支持 `exchange`
-        
-    - 输出必须含 `call_put/exercise_price/list_date/delist_date`
-        
-- `fx_daily`：
-    
-    - 必须显式标记 GMT
-        
-- `cn_gdp`：
-    
-    - 必须用 `start_q/end_q`
-        
-- `cn_cpi`：
-    
-    - 必须用 `start_m/end_m`
-        
-
-### 3. 集成测试（mock client）
-
-构造 fake Tushare client：
-
-- 返回多页 DataFrame
-    
-- 模拟空页
-    
-- 模拟 intermittent failure
-    
-- 模拟 schema 不一致
-    
-
-验证：
-
-- raw 文件是否正确生成
-    
-- metadata 是否写出
-    
-- state 是否更新
-    
-- compact 后是否主键唯一
-    
-- verify 是否能正确报缺失任务
-    
-
-### 4. smoke test（真实小样本）
-
-每个新数据集都要有一条真接口 smoke case：
-
-- `index_daily`: `000300.SH` 最近 5 个交易日
-    
-- `index_dailybasic`: `000001.SH` 最近 5 个交易日
-    
-- `cffex_fut_daily`: 选一个活跃 IF 合约最近 5 天
-    
-- `cffex_opt_basic`: `exchange='CFFEX'`
-    
-- `cffex_opt_daily`: 选一个活跃 IO 合约最近 5 天
-    
-- `macro_gdp`: 最近 4 个季度
-    
-- `fx_daily`: `USDCNH` 最近 10 天
-    
-
-### 5. 回归测试
-
-保留一组小型黄金样本 parquet：
-
-- 股票日线
-    
-- 指数日线
-    
-- 股指期货日线
-    
-- 股指期权日线
-    
-- GDP/CPI
-    
-- FX 日线
-    
-
-每次重构都比对：
-
-- 行数
-    
-- 主键唯一数
-    
-- 最大日期
-    
-- 核心字段集
-    
-- hash/checksum
-    
-
----
-
-## J. verify 与 compact：继续保留，但要升级成统一 job
-
-你现有思路是对的：先 raw 下载，再 compact，再 verify。  
-后续要把它们变成 dataset-aware 的统一作业。
-
-### 1. `compact_job`
-
-职责：
-
-- 收集 raw parts
-    
-- 读取对应 DatasetSpec
-    
-- 对齐 schema
-    
-- 去重
-    
-- 写 silver 主文件
-    
-- 生成 compact report
-    
-
-### 2. `verify_job`
-
-职责：
-
-- 检查 state 和文件一致性
-    
-- 检查主键重复
-    
-- 检查时间范围缺口
-    
-- 检查必要字段存在
-    
-- 检查 lineage sidecar 完整性
-    
-- 输出 `verify_report.json` 与 `verify_report.md`
-    
-
-### 3. 对四类数据的 verify 模板
-
-#### 股票
-
-- 按交易日检查缺口
-    
-- `ts_code + trade_date` 唯一
-    
-
-#### 指数
-
-- 按 `ts_code + trade_date` 检查缺口
-    
-- `index_dailybasic` 只对支持池检查
-    
-
-#### 股指期货
-
-- 月合约日线主键唯一
-    
-- continuous mapping 不允许同一日同一连续代码映射多个月合约
-    
-
-#### 股指期权
-
-- 生命周期一致性
-    
-- `ts_code + trade_date` 唯一
-    
-- `list_date <= trade_date <= delist_date`
-    
-
-#### 宏观
-
-- `series_id + period + value_type` 唯一
-    
-- period 格式合法
-    
-
-#### FX
-
-- `ts_code + trade_date` 唯一
-    
-- GMT 日期标记存在
-    
-
----
-
-## K. 实施顺序：后半段范围的落地节奏
-
-### Phase 3.1：先接 CFFEX 股指期权
-
-原因：
-
-- universe 可控
-    
-- 只做 3 条主线
-    
-- `opt_basic + opt_daily` 模型清晰
-    
-- 能很好验证 contract-first 框架
-    
-
-交付：
-
-- `cffex_opt_basic`
-    
-- `cffex_opt_daily`
-    
-- 活跃合约池构建器
-    
-- option verify 模板
-    
-
-### Phase 3.2：再接宏观
-
-原因：
-
-- 下载量小
-    
-- 更容易验证
-    
-- 但 period 逻辑与交易日不同，能检验框架泛化能力
-    
-
-交付：
-
-- `macro_gdp`
-    
-- `macro_cpi`
-    
-- `macro_ppi`
-    
-- `macro_money_supply`
-    
-- `macro_social_financing`
-    
-- `macro_pmi`
-    
-- `fact_macro_series` silver 模型
-    
-
-### Phase 3.3：最后接 FX
-
-原因：
-
-- 有 GMT 时区差异
-    
-- 有分类筛选逻辑
-    
-- 更适合作为跨市场扩展的最后一步
-    
-
-交付：
-
-- `fx_basic`
-    
-- `fx_daily`
-    
-- `dim_fx_symbol`
-    
-- `fact_fx_daily`
-    
-- 时区转换适配器
-    
-
----
-
-## L. 交付物清单：你最终应该产出的不是“几段脚本”，而是一套工程资产
-
-### 代码层
-
-- `core/`
-    
-- `adapters/`
-    
-- `datasets/`
-    
-- `jobs/`
-    
-
-### 配置层
-
-- `config/universe.yaml`
-    
-- `config/runtime.yaml`
-    
-- `config/storage.yaml`
-    
-
-### 数据层
-
-- `raw/`
-    
-- `silver/`
-    
-- `catalog/`
-    
-- `state/`
-    
-- `lineage/`
-    
-
-### 文档层
-
-- `docs/refactor_plan.md`
-    
-- `docs/dataset_catalog.md`
-    
-- `docs/testing_strategy.md`
-    
-- `docs/verify_rules.md`
-    
-
-### 测试层
-
-- `tests/unit/`
-    
-- `tests/contract/`
-    
-- `tests/integration/`
-    
-- `tests/regression/`
-    
-
----
-
-## M. 后半部分的最终结论
-
-从 CFFEX 股指期权往后，你真正需要建立的是一套**“按数据本质选任务粒度”的统一下载框架**：
-
-- 股票：按交易日
-    
-- 指数：按代码区间
-    
-- 股指期货：按合约区间 + 连续映射
-    
-- 股指期权：先合约维表，再日线事实表
-    
-- 宏观：按月/季 period
-    
-- 外汇：按代码区间，并显式处理 GMT
-    
-
-这套框架一旦搭好，你后面再扩展数据集时，就不再是“复制一个新的 `download_xxx_2026.py`”，而是“新增一个 DatasetSpec + 一个 adapter 配置 + 一组契约测试”。
-
-如果你要，我下一条可以继续把这份后半文档再推进一步，直接给你两样更落地的东西中的一个：  
-要么我把这整份文档整理成**完整的 markdown 成稿结构**；要么我直接从这里往下写 **`DatasetSpec + Runner + CFFEX option/macro/fx` 的代码骨架设计文档**。
+## 16.5 `src_data_download/download_daily_2026.py` / `download_daily_basic_2026.py`
+
+**处理方式：删除业务逻辑，仅保留 wrapper 或直接下线。**
+
+这两个脚本当前高度重复。README 也已点出这一点。([GitHub](https://github.com/789453/tushare_data_download_and_compact "https://github.com/789453/tushare_data_download_and_compact"))
+
+### 迁移目标
+
+- `datasets/stock_daily.py`
+- `datasets/stock_daily_basic.py`
+
+### wrapper 模式
+
+如果必须保留历史命令：
+
+```
+python src_data_download/download_daily_2026.py --start-date ...
+
+```
+
+则内部只组装 spec 并调用 CLI。
+
+## 16.6 `tests/*`
+
+**处理方式：保留并扩充，不删。**
+
+### 立刻要做的事
+
+- 让 `src_data_download/core/...` 与 `src_data_download/datasets/...` 真正落地
+- 让当前已有 tests 先跑通
+- 再加 smoke/regression
+
+***
+
+# 十七、CLI 统一接口
+
+最终统一为一个入口：
+
+```
+python -m src_data_download.cli catalog-refresh --datasets index_basic_selected,cffex_fut_basic,fx_basic_selected
+python -m src_data_download.cli bootstrap-history --datasets index_daily_selected,cffex_fut_mapping_selected,cffex_opt_basic_full,macro_cn_gdp
+python -m src_data_download.cli update-incremental --datasets all_core --max-dataset-workers 10 --max-task-workers 10
+python -m src_data_download.cli compact --datasets all_core
+python -m src_data_download.cli verify --datasets all_core
+python -m src_data_download.cli smoke --datasets cffex_opt_basic_full,macro_cn_cpi
+
+```
+
+Python API：
+
+```
+from src_data_download.datasets.registry import REGISTRY
+from src_data_download.jobs.update_incremental import run_incremental
+
+run_incremental(
+    dataset_specs=[
+        REGISTRY["index_daily_selected"],
+        REGISTRY["cffex_fut_mapping_selected"],
+        REGISTRY["cffex_opt_basic_full"],
+        REGISTRY["fx_daily_selected"],
+        REGISTRY["macro_cn_gdp"],
+    ],
+    max_dataset_workers=10,
+    max_task_workers=10,
+)
+
+```
+
+***
+
+# 十八、推荐实施顺序
+
+## Phase 1：搭骨架
+
+1. 建 `core/`
+2. 建 `datasets/registry.py`
+3. 落 `SQLiteMetaStore`
+4. 落 `DuckDBStore`
+5. 跑通 `stock_daily`
+
+## Phase 2：迁股票主线
+
+1. `daily`
+2. `daily_basic`
+3. `moneyflow`
+4. `stk_limit`
+5. `suspend_d`
+
+## Phase 3：接你这次新增的资产
+
+1. `index_basic_selected`
+2. `index_daily_selected`
+3. `index_dailybasic_supported`
+4. `cffex_fut_basic`
+5. `cffex_fut_mapping_selected`
+6. `cffex_opt_basic_full`
+7. `fx_basic_selected`
+8. `fx_daily_selected`
+9. `macro_cn_gdp`
+10. `macro_cn_cpi`
+11. `macro_cn_ppi`
+
+## Phase 4：补自动化
+
+1. `compact_job`
+2. `verify_job`
+3. `smoke_job`
+4. 回归样本
+5. 日常 cron / 计划任务
+
+***
+
+# 十九、最终定版原则
+
+这次改造定版时，要满足下面 8 条，否则不要认为“完成”：
+
+1. `src_data_download/core`、`src_data_download/datasets`、`src_data_download/jobs` 真实存在，且当前 tests 能跑。现有 tests 已经在要求这些模块存在。([GitHub](https://raw.githubusercontent.com/789453/tushare_data_download_and_compact/main/tests/unit/test_dataset_spec.py "raw.githubusercontent.com"))
+2. `download_trade_date_generic.py`、`update_raw_data.py`、`compact_raw_data.py` 仅作为 compat，不再承载主逻辑。当前主逻辑仍集中在这些文件里。([GitHub](https://raw.githubusercontent.com/789453/tushare_data_download_and_compact/main/src_data_download/download_trade_date_generic.py "raw.githubusercontent.com"))
+3. raw 全部先落 Parquet，silver 全部走 DuckDB merge，再统一导出标准 Parquet。DuckDB 对 Parquet 扫描和写出都已是官方支持路径。([DuckDB](https://duckdb.org/docs/current/data/parquet/overview.html?utm_source=chatgpt.com "Reading and Writing Parquet Files"))
+4. 所有 task 状态、水位、文件清单、verify 索引都入 SQLite，不再依赖 `_manifest.json` 为主状态源。SQLite 的 `sqlite3`、WAL、UPSERT 已足够支持控制平面。([Python documentation](https://docs.python.org/3/library/sqlite3.html "https://docs.python.org/3/library/sqlite3.html"))
+5. 你的命名修正必须落地：`.CFX` 连续映射不再挂在 FX 域名下。
+6. `index_dailybasic` 只针对官方支持池运行，不能误以为适用于全部指数。([Tushare](https://tushare.pro/document/2?doc_id=128 "https://tushare.pro/document/2?doc_id=128"))
+7. 宏观必须走 `period_month/period_quarter`，不允许再被套进 trade\_date 下载器。Tushare 官方已经明确了 `cn_gdp`、`cn_cpi`、`cn_ppi` 的 period 参数形态。([Tushare](https://tushare.pro/document/2?doc_id=227 "https://tushare.pro/document/2?doc_id=227"))
+8. 日志、进度条、verify report、smoke test 都必须是正式模块，而不是“开发期间的辅助脚本”。Python logging 和 Rich progress 都能直接支撑这个要求。([Python documentation](https://docs.python.org/3/library/logging.html "https://docs.python.org/3/library/logging.html"))
+
+这份文档可以直接作为重构蓝图使用。下一步最合适的动作，不是继续讨论概念，而是按这份文档先落第一批真实文件：`dataset_spec.py`、`task.py`、`task_builders.py`、`sqlite_meta.py`、`duckdb_store.py`、`runner.py`、`datasets/registry.py`，然后先把 `stock_daily` 和 `index_basic_selected` 跑通。

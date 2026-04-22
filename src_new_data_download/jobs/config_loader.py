@@ -9,7 +9,11 @@ class StorageConfig:
     data_root: Path
     raw_root: Path
     catalog_root: Path
-    state_path: Path
+    meta_root: Path
+    sqlite_path: Path
+    duckdb_path: Path
+    silver_root: Path
+    audit_root: Path
 
 
 @dataclass(frozen=True, slots=True)
@@ -22,9 +26,9 @@ class RuntimeConfig:
 class UniverseConfig:
     core_indices: list[str]
     core_index_dailybasic_supported: list[str]
-    core_cffex_futures_prefix: list[str]
+    core_cffex_futures_selected: list[str]
     core_cffex_options_prefix: list[str]
-    core_fx_symbols: list[str]
+    core_fx_selected: list[str]
     core_global_indices: list[str]
 
 
@@ -42,11 +46,16 @@ def _load_yaml(path: Path) -> dict:
 def load_storage_config(project_root: Path, *, path: Path | None = None) -> StorageConfig:
     p = path or (project_root / "config" / "storage.yaml")
     d = _load_yaml(p)
-    data_root = project_root / str(d.get("data_root", "data"))
-    raw_root = project_root / str(d.get("raw_root", "data/raw"))
-    catalog_root = project_root / str(d.get("catalog_root", "data/catalog"))
-    state_path = project_root / str(d.get("state_path", "data/state/download.state.json"))
-    return StorageConfig(data_root=data_root, raw_root=raw_root, catalog_root=catalog_root, state_path=state_path)
+    return StorageConfig(
+        data_root=project_root / str(d.get("data_root", "data")),
+        raw_root=project_root / str(d.get("raw_root", "data/raw")),
+        catalog_root=project_root / str(d.get("catalog_root", "data/catalog")),
+        meta_root=project_root / str(d.get("meta_root", "data/meta")),
+        sqlite_path=project_root / str(d.get("sqlite_path", "data/meta/control.sqlite3")),
+        duckdb_path=project_root / str(d.get("duckdb_path", "data/meta/warehouse.duckdb")),
+        silver_root=project_root / str(d.get("silver_root", "data/silver")),
+        audit_root=project_root / str(d.get("audit_root", "data/audit")),
+    )
 
 
 def load_runtime_config(project_root: Path, *, path: Path | None = None) -> RuntimeConfig:
@@ -64,8 +73,8 @@ def load_universe_config(project_root: Path, *, path: Path | None = None) -> Uni
     return UniverseConfig(
         core_indices=[str(x) for x in d.get("core_indices", [])],
         core_index_dailybasic_supported=[str(x) for x in d.get("core_index_dailybasic_supported", [])],
-        core_cffex_futures_prefix=[str(x) for x in d.get("core_cffex_futures_prefix", [])],
+        core_cffex_futures_selected=[str(x) for x in d.get("core_cffex_futures_selected", [])],
         core_cffex_options_prefix=[str(x) for x in d.get("core_cffex_options_prefix", [])],
-        core_fx_symbols=[str(x) for x in d.get("core_fx_symbols", [])],
+        core_fx_selected=[str(x) for x in d.get("core_fx_selected", [])],
         core_global_indices=[str(x) for x in d.get("core_global_indices", [])],
     )

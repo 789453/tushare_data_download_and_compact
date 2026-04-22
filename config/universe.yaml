@@ -1,12 +1,33 @@
 core_indices:
   - 000001.SH
   - 399001.SZ
-  - 000300.SH
-  - 000016.SH
-  - 000905.SH
-  - 000852.SH
+  - 399300.SZ
   - 399006.SZ
-  - 000688.SH
+  - 000699.SH
+  - 399852.SZ
+  - 000905.SH
+  - 399405.SZ
+  - 399406.SZ
+  - 399407.SZ
+  - 399408.SZ
+  - 399409.SZ
+  - CN5140.CNI
+  - CN5141.CNI
+  - CN6138.CNI
+  - CN6139.CNI
+  - CN6140.CNI
+  - CN6141.CNI
+  - CSPSADRP.CI
+  - CN2372.CNI
+  - CN2373.CNI
+  - CN2374.CNI
+  - CN2375.CNI
+  - CN2376.CNI
+  - CN2377.CNI
+  - CN2602.CNI
+  - CN2604.CNI
+  - CN2626.CNI
+  - CN2627.CNI
 
 core_index_dailybasic_supported:
   - 000001.SH
@@ -15,24 +36,42 @@ core_index_dailybasic_supported:
   - 000905.SH
   - 399006.SZ
 
-core_cffex_futures_prefix:
-  - IF
-  - IH
-  - IC
-  - IM
+core_cffex_futures_selected:
+  - TSL.CFX
+  - TSL1.CFX
+  - TSL2.CFX
+  - IF.CFX
+  - IH.CFX
+  - IC.CFX
+  - IM.CFX
+  - IML.CFX
+  - IML1.CFX
+  - IML2.CFX
+  - IFL.CFX
+  - IFL1.CFX
+  - IFL2.CFX
+  - IFL3.CFX
+  - ICL.CFX
+  - ICL1.CFX
+  - ICL2.CFX
+  - ICL3.CFX
+  - IHL3.CFX
+  - IHL2.CFX
+  - IHL1.CFX
+  - IHL.CFX
+  - IML3.CFX
 
 core_cffex_options_prefix:
   - IO
   - HO
   - MO
 
-core_fx_symbols:
-  - USDCNH
-  - USDJPY
-  - EURUSD
-  - GBPUSD
-  - XAUUSD
-  - USDOLLAR
+core_fx_selected:
+  - GBPUSD.FXCM
+  - USDCNH.FXCM
+  - USDJPY.FXCM
+  - USOil.FXCM
+  - XAGUSD.FXCM
 
 core_global_indices:
   - XIN9

@@ -30,7 +30,7 @@ class ParquetSink:
         task_key: str,
         request_params: dict,
     ) -> SinkWriteResult:
-        from ..ts_download_utils import write_parquet_atomic
+        from .utils import write_parquet_atomic
 
         r = write_parquet_atomic(parquet_path, df, compression=self.compression)  # type: ignore[arg-type]
         cols = [str(x) for x in getattr(df, "columns", [])]

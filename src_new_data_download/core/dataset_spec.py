@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal
 
 from .exceptions import SpecValidationError
@@ -26,6 +26,14 @@ class DatasetSpec:
     exchange_filter: str | None = None
     market_filter: str | None = None
     timezone: str | None = None
+
+    stable_before: str | None = None
+    lookback_days: int = 0
+    lookback_months: int = 0
+    lookback_quarters: int = 0
+    keep_snapshots: bool = False
+    selected_codes: tuple[str, ...] = ()
+    extra_params: dict[str, str] = field(default_factory=dict)
 
     def validate(self) -> None:
         if not self.name or not self.name.strip():

@@ -3,7 +3,7 @@ from __future__ import annotations
 from ..core.dataset_spec import DatasetSpec
 
 SPEC = DatasetSpec(
-    name="macro_ppi",
+    name="macro_cn_ppi",
     api_name="cn_ppi",
     asset_class="macro",
     fetch_mode="period_month",
@@ -14,5 +14,6 @@ SPEC = DatasetSpec(
     limit=10000,
     supports_offset=False,
     supports_trade_cal=False,
+    lookback_months=24,
 )
 

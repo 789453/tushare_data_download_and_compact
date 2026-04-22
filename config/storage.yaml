@@ -1,5 +1,8 @@
 data_root: data
 raw_root: data/raw
 catalog_root: data/catalog
-state_path: data/state/download.state.json
-
+meta_root: data/meta
+sqlite_path: data/meta/control.sqlite3
+duckdb_path: data/meta/warehouse.duckdb
+silver_root: data/silver
+audit_root: data/audit

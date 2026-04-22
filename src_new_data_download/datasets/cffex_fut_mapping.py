@@ -3,7 +3,7 @@ from __future__ import annotations
 from ..core.dataset_spec import DatasetSpec
 
 SPEC = DatasetSpec(
-    name="cffex_fut_mapping",
+    name="cffex_fut_mapping_selected",
     api_name="fut_mapping",
     asset_class="futures",
     fetch_mode="ts_code_range",
@@ -15,5 +15,6 @@ SPEC = DatasetSpec(
     supports_offset=True,
     supports_trade_cal=False,
     exchange_filter="CFFEX",
+    lookback_days=30,
 )
 

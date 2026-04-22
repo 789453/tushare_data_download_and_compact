@@ -15,5 +15,6 @@ SPEC = DatasetSpec(
     supports_offset=True,
     supports_trade_cal=False,
     exchange_filter="CFFEX",
+    lookback_days=30,
 )
 

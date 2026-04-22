@@ -26,7 +26,7 @@ class Task:
 
 class TradeDateTaskBuilder:
     def build(self, pro, spec: DatasetSpec, *, start_date: str, end_date: str) -> list[Task]:
-        from ..ts_download_utils import iter_trade_dates_yyyymmdd
+        from ..adapters.calendars import iter_trade_dates_yyyymmdd
 
         if spec.date_col is None:
             raise TaskBuildError(f"{spec.name}: trade_date 模式必须提供 date_col")
@@ -37,16 +37,35 @@ class TradeDateTaskBuilder:
         return tasks
 
 
-def _iter_year_windows(start_date: str, end_date: str) -> Iterable[tuple[str, str]]:
+def _iter_windows(start_date: str, end_date: str, window: str = "year") -> Iterable[tuple[str, str]]:
     s = datetime.strptime(start_date, "%Y%m%d")
     e = datetime.strptime(end_date, "%Y%m%d")
-    y = s.year
-    while y <= e.year:
-        ws = max(s, datetime(y, 1, 1))
-        we = min(e, datetime(y, 12, 31))
-        yield ws.strftime("%Y%m%d"), we.strftime("%Y%m%d")
-        y += 1
-
+    
+    if window == "year":
+        y = s.year
+        while y <= e.year:
+            ws = max(s, datetime(y, 1, 1))
+            we = min(e, datetime(y, 12, 31))
+            yield ws.strftime("%Y%m%d"), we.strftime("%Y%m%d")
+            y += 1
+    elif window == "quarter":
+        # Simplified quarter iteration
+        curr = s
+        while curr <= e:
+            q_end_month = ((curr.month - 1) // 3 + 1) * 3
+            # last day of quarter
+            import calendar
+            _, last_day = calendar.monthrange(curr.year, q_end_month)
+            we = min(e, datetime(curr.year, q_end_month, last_day))
+            yield curr.strftime("%Y%m%d"), we.strftime("%Y%m%d")
+            # move to first day of next quarter
+            if q_end_month == 12:
+                curr = datetime(curr.year + 1, 1, 1)
+            else:
+                curr = datetime(curr.year, q_end_month + 1, 1)
+    else:
+        # Default to one big window if not specified or unknown
+        yield start_date, end_date
 
 class CodeRangeTaskBuilder:
     def __init__(self, *, window: str = "year"):
@@ -56,10 +75,8 @@ class CodeRangeTaskBuilder:
         if spec.date_col is None:
             raise TaskBuildError(f"{spec.name}: ts_code_range 模式必须提供 date_col")
         tasks: list[Task] = []
-        if self.window != "year":
-            raise TaskBuildError(f"暂不支持 window={self.window}")
         for code in ts_codes:
-            for sd, ed in _iter_year_windows(start_date, end_date):
+            for sd, ed in _iter_windows(start_date, end_date, self.window):
                 tasks.append(Task(spec=spec, request_params={"ts_code": code, "start_date": sd, "end_date": ed}))
         return tasks
 

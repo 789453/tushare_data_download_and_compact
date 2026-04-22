@@ -3,7 +3,7 @@ from __future__ import annotations
 from ..core.dataset_spec import DatasetSpec
 
 SPEC = DatasetSpec(
-    name="index_dailybasic",
+    name="index_dailybasic_supported",
     api_name="index_dailybasic",
     asset_class="index",
     fetch_mode="ts_code_range",
@@ -14,5 +14,6 @@ SPEC = DatasetSpec(
     limit=3000,
     supports_offset=True,
     supports_trade_cal=False,
+    lookback_days=30,
 )
 
