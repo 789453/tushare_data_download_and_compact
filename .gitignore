@@ -1,16 +1,17 @@
 # Python cache
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
 
 # Virtual environment
 .venv/
 venv/
 env/
 
-# Jupyter
-.ipynb_checkpoints/
+# Build / packaging
+build/
+dist/
+*.egg-info/
 
 # IDE
 .vscode/
@@ -23,21 +24,42 @@ Thumbs.db
 # Logs
 *.log
 
-# Secrets / local config
+# Jupyter
+.ipynb_checkpoints/
+
+# Pytest / mypy / coverage
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Env / secrets
 .env
-secrets.yaml
-config_local.yaml
+.env.*
+*.pem
+*.key
 
-# Data
-data/
+# Temp
+*.tmp
+*.bak
 
-# Results
-results/
-outputs/
-plots/
+# Databases
+*.db
+*.sqlite3
 
-# Models / binaries
-*.pkl
-*.joblib
-*.h5
-*.parquet
+# -------------------------
+# Your custom upload rules
+# -------------------------
+
+# Ignore everything under data
+data/**
+
+# But keep catalog and its contents
+!data/catalog/
+!data/catalog/**
+
+# Ignore everything under arichitecture
+arichitecture/**
+
+# But keep the specified markdown file
+!arichitecture/项目升级和新数据使用文档.md

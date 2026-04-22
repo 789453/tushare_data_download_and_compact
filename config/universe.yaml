@@ -1,0 +1,42 @@
+core_indices:
+  - 000001.SH
+  - 399001.SZ
+  - 000300.SH
+  - 000016.SH
+  - 000905.SH
+  - 000852.SH
+  - 399006.SZ
+  - 000688.SH
+
+core_index_dailybasic_supported:
+  - 000001.SH
+  - 399001.SZ
+  - 000016.SH
+  - 000905.SH
+  - 399006.SZ
+
+core_cffex_futures_prefix:
+  - IF
+  - IH
+  - IC
+  - IM
+
+core_cffex_options_prefix:
+  - IO
+  - HO
+  - MO
+
+core_fx_symbols:
+  - USDCNH
+  - USDJPY
+  - EURUSD
+  - GBPUSD
+  - XAUUSD
+  - USDOLLAR
+
+core_global_indices:
+  - XIN9
+  - HSI
+  - HKTECH
+  - SPX
+  - IXIC
