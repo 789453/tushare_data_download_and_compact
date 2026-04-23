@@ -23,6 +23,13 @@ class RuntimeConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class StockImportLegacyConfig:
+    enabled: bool
+    source_root: Path
+    files: dict[str, str]
+
+
+@dataclass(frozen=True, slots=True)
 class UniverseConfig:
     core_indices: list[str]
     core_index_dailybasic_supported: list[str]
@@ -30,6 +37,7 @@ class UniverseConfig:
     core_cffex_options_prefix: list[str]
     core_fx_selected: list[str]
     core_global_indices: list[str]
+    stock_import_legacy: StockImportLegacyConfig
 
 
 def _load_yaml(path: Path) -> dict:
@@ -70,6 +78,14 @@ def load_runtime_config(project_root: Path, *, path: Path | None = None) -> Runt
 def load_universe_config(project_root: Path, *, path: Path | None = None) -> UniverseConfig:
     p = path or (project_root / "config" / "universe.yaml")
     d = _load_yaml(p)
+    
+    legacy_cfg = d.get("stock_import_legacy", {})
+    stock_import_legacy = StockImportLegacyConfig(
+        enabled=bool(legacy_cfg.get("enabled", False)),
+        source_root=Path(str(legacy_cfg.get("source_root", ""))),
+        files=legacy_cfg.get("files", {}),
+    )
+
     return UniverseConfig(
         core_indices=[str(x) for x in d.get("core_indices", [])],
         core_index_dailybasic_supported=[str(x) for x in d.get("core_index_dailybasic_supported", [])],
@@ -77,4 +93,5 @@ def load_universe_config(project_root: Path, *, path: Path | None = None) -> Uni
         core_cffex_options_prefix=[str(x) for x in d.get("core_cffex_options_prefix", [])],
         core_fx_selected=[str(x) for x in d.get("core_fx_selected", [])],
         core_global_indices=[str(x) for x in d.get("core_global_indices", [])],
+        stock_import_legacy=stock_import_legacy,
     )

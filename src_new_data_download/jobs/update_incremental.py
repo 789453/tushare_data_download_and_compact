@@ -39,6 +39,7 @@ def run_incremental(
     rate_limiter.set_rate("fut_daily", 100)
     rate_limiter.set_rate("opt_daily", 100)
     rate_limiter.set_rate("fx_daily", 100)
+    rate_limiter.set_rate("index_global", 100)
     
     runner = Runner(
         project_root=project_root,
@@ -66,9 +67,21 @@ def run_incremental(
             
         logger.info(f"Starting incremental update for {name}")
         
-        # Start date logic: Stock from 2026, Others from 2018
-        default_start = "20260101" if spec.asset_class == "stock" else "20180101"
-        watermark = meta_store.get_watermark(name) or spec.stable_before or default_start
+        # Start date logic:
+        # 1. Check SQLite watermark (highest priority, set by previous jobs or legacy import)
+        # 2. Check spec.stable_before
+        # 3. Fallback to asset-class defaults
+        watermark = meta_store.get_watermark(name)
+        if watermark:
+            logger.info(f"Found watermark for {name}: {watermark}")
+        else:
+            watermark = spec.stable_before
+            if watermark:
+                logger.info(f"Using stable_before for {name}: {watermark}")
+            else:
+                # Default start dates: stocks from 2026, others from 2018 as per user request
+                watermark = "20260101" if spec.asset_class == "stock" else "20180101"
+                logger.info(f"Using default start for {name} ({spec.asset_class}): {watermark}")
         
         tasks = []
         try:
@@ -78,7 +91,9 @@ def run_incremental(
             elif spec.fetch_mode == "ts_code_range":
                 builder = CodeRangeTaskBuilder()
                 codes = []
-                if spec.asset_class == "index":
+                if spec.name == "index_global":
+                    codes = universe_cfg.core_global_indices
+                elif spec.asset_class == "index":
                     codes = universe_cfg.core_indices
                 elif spec.asset_class == "futures":
                     codes = universe_cfg.core_cffex_futures_selected

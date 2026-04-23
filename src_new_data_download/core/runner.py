@@ -78,14 +78,17 @@ class Runner:
         # Apply rate limiting
         self.rate_limiter.wait(spec.api_name)
 
-        frames = list(
-            paginated_fetch(
+        frames = [
+            df
+            for df in paginated_fetch(
                 pro,
                 spec.api_name,
                 limit=int(spec.limit),
                 params=params,
             )
-        )
+            if df is not None and not df.empty
+        ]
+        
         if not frames:
             import pandas as pd
             return pd.DataFrame()

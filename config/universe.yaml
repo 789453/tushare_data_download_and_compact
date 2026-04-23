@@ -77,5 +77,55 @@ core_global_indices:
   - XIN9
   - HSI
   - HKTECH
+  - HKAH
+  - DJI
   - SPX
   - IXIC
+  - FTSE
+  - FCHI
+  - GDAXI
+  - N225
+  - KS11
+
+stock_core:
+  exchanges: [SSE, SZSE, BSE]
+  list_status: [L, D, P]
+  markets: [主板, 创业板, 科创板, 北交所, CDR]
+  enable_catalog_stock_basic: true
+  enable_stock_daily: true
+  enable_stock_daily_basic: true
+  enable_stock_moneyflow: true
+  enable_stock_cyq_perf: true
+  enable_stock_stk_limit: true
+  enable_stock_suspend_d: true
+  enable_stock_cyq_perf: true
+  enable_stock_mins_60m: true
+  enable_stock_fina_indicator: true
+  enable_stock_sw_member: true
+
+stock_minutes:
+  freqs: ["60min"]
+  batch_size: 50
+
+stock_fundamental:
+  quarterly_datasets:
+    - fina_indicator
+  start_year: 2004
+  end_year: 2026
+
+stock_industry:
+  taxonomies:
+    - sw
+
+stock_import_legacy:
+  enabled: true
+  source_root: "D:/Trading/data_ever_26_3_14/data/Raw_data"
+  files:
+    stock_daily: "daily.parquet"
+    stock_daily_basic: "daily_basic.parquet"
+    stock_moneyflow: "moneyflow.parquet"
+    stock_stk_limit: "stk_limit.parquet"
+    stock_suspend_d: "suspend_d.parquet"
+    stock_cyq_perf: "cyq_perf.parquet"
+    stock_basic_snapshot: "stock_basic.parquet"
+    stock_fina_indicator: "fina_indicator.parquet"

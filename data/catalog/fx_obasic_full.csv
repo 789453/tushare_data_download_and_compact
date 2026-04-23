@@ -1,0 +1,70 @@
+ts_code,name,classify,exchange,min_unit,max_unit,pip,pip_cost,traget_spread,min_stop_distance,trading_hours,break_time
+AUDCAD.FXCM,澳元加元,FX,FXCM,1.0,,1e-05,,,, Sun 17.00 - Fri 16.55,
+AUDCHF.FXCM,澳元瑞士法郎,FX,FXCM,1.0,,1e-05,,,, Sun 17.00 - Fri 16.55,
+AUDJPY.FXCM,澳元日元,FX,FXCM,1.0,,1e-05,,,, Sun 17.00 - Fri 16.55,
+AUDNZD.FXCM,澳元新西兰元,FX,FXCM,1.0,,1e-05,,,, Sun 17.00 - Fri 16.55,
+AUDUSD.FXCM,澳元美元,FX,FXCM,1.0,,1e-05,,,, Sun 17.00 - Fri 16.55,
+AUS200.FXCM,澳大利亚标准普尔200指数,INDEX,FXCM,1.0,2000.0,1.0,0.1,1.0,0.0,Sun 23.50 - Fri 20.45,Daily 06.30 - 07.10
+Bund.FXCM,欧洲债券,BUND,FXCM,1.0,,,,,,,
+CADCHF.FXCM,加元瑞士法郎,FX,FXCM,1.0,,1e-05,,,, Sun 17.00 - Fri 16.55,
+CADJPY.FXCM,加元日元,FX,FXCM,1.0,,1e-05,,,, Sun 17.00 - Fri 16.55,
+CHFJPY.FXCM,瑞郎日元,FX,FXCM,1.0,,1e-05,,,, Sun 17.00 - Fri 16.55,
+CHN50.FXCM,富时中国A50指数,INDEX,FXCM,1.0,100.0,1.0,0.1,15.0,0.0,Daily 01.00 - 20.45,Daily 08.30 - 09.00
+Copper.FXCM,铜,COMMODITY,FXCM,1.0,500.0,,0.1,3.0,0.0,Sun 22.00 - Fri 20.45,Daily from 21.00 until 22.00
+ESP35.FXCM,西班牙IBEX35指数,INDEX,FXCM,1.0,5000.0,1.0,0.1,8.0,12.0,Daily 06.00 - 18.00,
+EURAUD.FXCM,欧元澳元,FX,FXCM,1.0,,1e-05,,,, Sun 17.00 - Fri 16.55,
+EURCAD.FXCM,欧元加元,FX,FXCM,1.0,,1e-05,,,, Sun 17.00 - Fri 16.55,
+EURCHF.FXCM,欧元瑞士法郎,FX,FXCM,1.0,,1e-05,,,, Sun 17.00 - Fri 16.55,
+EURGBP.FXCM,欧元英镑,FX,FXCM,1.0,,1e-05,,,, Sun 17.00 - Fri 16.55,
+EURJPY.FXCM,欧元日元,FX,FXCM,1.0,,1e-05,,,, Sun 17.00 - Fri 16.55,
+EURNOK.FXCM,欧元挪威克朗,FX,FXCM,1.0,,1e-05,,,, Sun 17.00 - Fri 16.55,
+EURNZD.FXCM,欧元新西兰元,FX,FXCM,1.0,,1e-05,,,, Sun 17.00 - Fri 16.55,
+EURSEK.FXCM,欧元瑞典克朗,FX,FXCM,1.0,,1e-05,,,, Sun 17.00 - Fri 16.55,
+EURTRY.FXCM,欧元兑土耳其里拉,FX,FXCM,1.0,,1e-05,,,, Sun 17.00 - Fri 16.55,
+EURUSD.FXCM,欧元美元,FX,FXCM,1.0,,1e-05,,,, Sun 17.00 - Fri 16.55,
+EUSTX50.FXCM,欧洲斯托克50指数,INDEX,FXCM,1.0,5000.0,1.0,0.1,1.0,0.0,Daily 06.00 - 20.00,
+FRA40.FXCM,法国CAC40指数,INDEX,FXCM,1.0,5000.0,1.0,0.1,1.0,0.0,Daily 06.00 - 20.00,
+GBPAUD.FXCM,英镑澳元,FX,FXCM,1.0,,1e-05,,,, Sun 17.00 - Fri 16.55,
+GBPCAD.FXCM,英镑加元,FX,FXCM,1.0,,1e-05,,,, Sun 17.00 - Fri 16.55,
+GBPCHF.FXCM,英镑瑞士法郎,FX,FXCM,1.0,,1e-05,,,, Sun 17.00 - Fri 16.55,
+GBPJPY.FXCM,英镑日元,FX,FXCM,1.0,,1e-05,,,, Sun 17.00 - Fri 16.55,
+GBPNZD.FXCM,英镑新西兰元,FX,FXCM,1.0,,1e-05,,,, Sun 17.00 - Fri 16.55,
+GBPUSD.FXCM,英镑美元,FX,FXCM,1.0,,1e-05,,,, Sun 17.00 - Fri 16.55,
+GER30.FXCM,德国DAX指数,INDEX,FXCM,1.0,1000.0,1.0,0.1,0.9,0.0,Daily 00.30 - 20.00,
+HKG33.FXCM,香港恒生指数,INDEX,FXCM,1.0,300.0,1.0,1.0,10.0,0.0,Daily 01.15 - 08.15,Daily 04.00 -05.00
+JPN225.FXCM,日经225指数,INDEX,FXCM,10.0,1000.0,1.0,10.0,10.0,0.0,Sun 23.00 - Fri 20.15,
+NAS100.FXCM,美国纳斯达克100指数,INDEX,FXCM,1.0,5000.0,1.0,0.1,1.0,0.0,Sun 22.00 - Fri 20.15,Daily from 20.15 to 20.30 andfrom 21.00 until 22.00
+NGAS.FXCM,天然气,COMMODITY,FXCM,1.0,100.0,,0.1,10.0,0.0,Sun 22.00 - Fri 20.45,Daily from 21.00 until 22.00
+NZDCAD.FXCM,新西兰元加元,FX,FXCM,1.0,,1e-05,,,, Sun 17.00 - Fri 16.55,
+NZDCHF.FXCM,新西兰元瑞郎,FX,FXCM,1.0,,1e-05,,,, Sun 17.00 - Fri 16.55,
+NZDJPY.FXCM,新西兰元日元,FX,FXCM,1.0,,1e-05,,,, Sun 17.00 - Fri 16.55,
+NZDUSD.FXCM,新西兰元美元,FX,FXCM,1.0,,1e-05,,,, Sun 17.00 - Fri 16.55,
+SOYF.FXCM,大豆,COMMODITY,FXCM,1.0,2000.0,,0.1,7.5,0.0,Daily 00.00 - 18.20,Daily 12.45 - 13.30
+SPX500.FXCM,美国标普500指数,INDEX,FXCM,1.0,5000.0,0.1,0.1,5.0,0.0,Sun 22.00 - Fri 20.15,Daily from 20.15 to 20.30 andfrom 21.00 until 22.00
+TRYJPY.FXCM,土耳其里拉日元,FX,FXCM,1.0,,1e-05,,,, Sun 17.00 - Fri 16.55,
+UK100.FXCM,英国富时100指数,INDEX,FXCM,1.0,4000.0,1.0,0.1,1.0,0.0,Daily 06.00 - 20.00,
+UKOil.FXCM,英国原油,COMMODITY,FXCM,1.0,5000.0,,0.1,5.0,0.0,Mon 00.00 - Fri 20.45,Daily from 21.00 until 00.00
+US30.FXCM,道琼斯工业平均指数,INDEX,FXCM,1.0,4000.0,1.0,0.1,2.0,0.0,Sun 22.00 - Fri 20.15,Daily from 20.15 to 20.30 andfrom 21.00 until 22.00
+USDCAD.FXCM,美元加元,FX,FXCM,1.0,,1e-05,,,, Sun 17.00 - Fri 16.55,
+USDCHF.FXCM,美元瑞郎,FX,FXCM,1.0,,1e-05,,,, Sun 17.00 - Fri 16.55,
+USDCNH.FXCM,美元人民币,FX,FXCM,1.0,,1e-05,,,, Sun 17.00 - Fri 16.55,
+USDHKD.FXCM,美元港元,FX,FXCM,1.0,,1e-05,,,, Sun 17.00 - Fri 16.55,
+USDJPY.FXCM,美元日元,FX,FXCM,1.0,,1e-05,,,, Sun 17.00 - Fri 16.55,
+USDMXN.FXCM,美元墨西哥比索,FX,FXCM,1.0,,1e-05,,,, Sun 17.00 - Fri 16.55,
+USDNOK.FXCM,美元挪威克朗,FX,FXCM,1.0,,1e-05,,,, Sun 17.00 - Fri 16.55,
+USDSEK.FXCM,美元瑞典克朗,FX,FXCM,1.0,,1e-05,,,, Sun 17.00 - Fri 16.55,
+USDTRY.FXCM,美元土耳其里拉,FX,FXCM,1.0,,1e-05,,,, Sun 17.00 - Fri 16.55,
+USDZAR.FXCM,美元南非兰特,FX,FXCM,1.0,,1e-05,,,, Sun 17.00 - Fri 16.55,
+USDOLLAR.FXCM,美元指数,FX_BASKET,FXCM,1.0,200.0,0.001,1.0,,3.0,,
+USOil.FXCM,美国原油,COMMODITY,FXCM,1.0,5000.0,,0.1,5.0,0.0,Sun 22.00 - Fri 20.45,Daily from 21.00 until 22.00
+XAGUSD.FXCM,白银美元,COMMODITY,FXCM,50.0,200000.0,,0.5,4.5,0.0,Sun 22.00 - Fri 20.45,Daily from 21.00 until 22.00
+XAUUSD.FXCM,黄金美元,COMMODITY,FXCM,1.0,10000.0,,0.01,40.0,0.0,Sun 22.00 - Fri 20.45,Daily from 21.00 until 22.00
+ZARJPY.FXCM,南非兰特日元,FX,FXCM,1.0,,1e-05,,,, Sun 17.00 - Fri 16.55,
+US2000.FXCM,美国罗素2000指数,INDEX,FXCM,1.0,5000.0,0.1,0.1,4.0,0.0,,
+WHEATF.FXCM,小麦,COMMODITY,FXCM,1.0,2000.0,,0.1,7.5,0.0,Daily 00.00 - 18.20,Daily 12.45 - 13.30
+CORNF.FXCM,玉米,COMMODITY,FXCM,1.0,2000.0,,0.1,7.5,2.0,Daily 00.00 - 18.20,Daily 12.45 - 13.30
+BTCUSD.FXCM,比特币美元,CRYPTO,FXCM,1.0,500.0,1.0,0.01,,,Sun 22.00 - Fri 20.45,Daily 20.45 - 22.00
+BCHUSD.FXCM,比特币现金美元,CRYPTO,FXCM,1.0,1000.0,1.0,0.01,,,Sun 22.00 - Fri 20.45,Daily 20.45 - 22.00
+ETHUSD.FXCM,以太币美元,CRYPTO,FXCM,1.0,1000.0,1.0,0.01,,,Sun 22.00 - Fri 20.45,Daily 20.45 - 22.00
+LTCUSD.FXCM,莱特币美元,CRYPTO,FXCM,1.0,1000.0,0.01,0.01,,,Sun 22.00 - Fri 20.45,Daily 20.45 - 22.00
+XRPUSD.FXCM,瑞波币美元,CRYPTO,FXCM,100.0,1000.0,0.01,0.01,,,Sun 22.00 - Fri 20.45,Daily 20.45 - 22.00

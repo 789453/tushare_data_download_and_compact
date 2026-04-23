@@ -32,6 +32,7 @@ class DatasetSpec:
     lookback_months: int = 0
     lookback_quarters: int = 0
     keep_snapshots: bool = False
+    window: str = "year"
     selected_codes: tuple[str, ...] = ()
     extra_params: dict[str, str] = field(default_factory=dict)
 

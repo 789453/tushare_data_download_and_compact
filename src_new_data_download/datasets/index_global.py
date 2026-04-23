@@ -14,5 +14,5 @@ SPEC = DatasetSpec(
     limit=4000,
     supports_offset=True,
     supports_trade_cal=False,
+    lookback_days=30,
 )
-

@@ -63,20 +63,19 @@ def _iter_windows(start_date: str, end_date: str, window: str = "year") -> Itera
                 curr = datetime(curr.year + 1, 1, 1)
             else:
                 curr = datetime(curr.year, q_end_month + 1, 1)
+    elif window == "full":
+        yield start_date, end_date
     else:
         # Default to one big window if not specified or unknown
         yield start_date, end_date
 
 class CodeRangeTaskBuilder:
-    def __init__(self, *, window: str = "year"):
-        self.window = window
-
     def build(self, _pro, spec: DatasetSpec, *, ts_codes: list[str], start_date: str, end_date: str) -> list[Task]:
         if spec.date_col is None:
             raise TaskBuildError(f"{spec.name}: ts_code_range 模式必须提供 date_col")
         tasks: list[Task] = []
         for code in ts_codes:
-            for sd, ed in _iter_windows(start_date, end_date, self.window):
+            for sd, ed in _iter_windows(start_date, end_date, spec.window):
                 tasks.append(Task(spec=spec, request_params={"ts_code": code, "start_date": sd, "end_date": ed}))
         return tasks
 

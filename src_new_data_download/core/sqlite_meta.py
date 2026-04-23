@@ -179,12 +179,14 @@ class SQLiteMetaStore:
                 WHERE job_id = ?
             """, (status, finished_at, kwargs.get("done_tasks"), kwargs.get("failed_tasks"), job_id))
 
-    def record_file(self, file_path: str, dataset_name: str, task_key: str | None, file_kind: str, row_count: int | None = None):
+    def record_file(self, file_path: str, dataset_name: str, task_key: str | None, file_kind: str, row_count: int | None = None, file_size: int | None = None, file_hash: str | None = None):
         with self._get_conn() as conn:
             conn.execute("""
-                INSERT INTO file_manifest(file_path, dataset_name, task_key, file_kind, row_count, created_at)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO file_manifest(file_path, dataset_name, task_key, file_kind, row_count, file_size, file_hash, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(file_path) DO UPDATE SET
-                    row_count = excluded.row_count,
+                    row_count = COALESCE(excluded.row_count, row_count),
+                    file_size = COALESCE(excluded.file_size, file_size),
+                    file_hash = COALESCE(excluded.file_hash, file_hash),
                     created_at = excluded.created_at
-            """, (file_path, dataset_name, task_key, file_kind, row_count, now_iso_utc()))
+            """, (file_path, dataset_name, task_key, file_kind, row_count, file_size, file_hash, now_iso_utc()))
