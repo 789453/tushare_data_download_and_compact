@@ -1,0 +1,2783 @@
+{
+    "control_sqlite": {
+        "dataset_watermark": [
+            {
+                "name": "dataset_name",
+                "type": "TEXT",
+                "notnull": 0,
+                "pk": 1
+            },
+            {
+                "name": "watermark_value",
+                "type": "TEXT",
+                "notnull": 0,
+                "pk": 0
+            },
+            {
+                "name": "watermark_col",
+                "type": "TEXT",
+                "notnull": 0,
+                "pk": 0
+            },
+            {
+                "name": "updated_at",
+                "type": "TEXT",
+                "notnull": 1,
+                "pk": 0
+            },
+            {
+                "name": "note",
+                "type": "TEXT",
+                "notnull": 0,
+                "pk": 0
+            }
+        ],
+        "job_run": [
+            {
+                "name": "job_id",
+                "type": "TEXT",
+                "notnull": 0,
+                "pk": 1
+            },
+            {
+                "name": "job_type",
+                "type": "TEXT",
+                "notnull": 1,
+                "pk": 0
+            },
+            {
+                "name": "dataset_name",
+                "type": "TEXT",
+                "notnull": 0,
+                "pk": 0
+            },
+            {
+                "name": "started_at",
+                "type": "TEXT",
+                "notnull": 1,
+                "pk": 0
+            },
+            {
+                "name": "finished_at",
+                "type": "TEXT",
+                "notnull": 0,
+                "pk": 0
+            },
+            {
+                "name": "status",
+                "type": "TEXT",
+                "notnull": 1,
+                "pk": 0
+            },
+            {
+                "name": "total_tasks",
+                "type": "INTEGER",
+                "notnull": 0,
+                "pk": 0
+            },
+            {
+                "name": "done_tasks",
+                "type": "INTEGER",
+                "notnull": 0,
+                "pk": 0
+            },
+            {
+                "name": "failed_tasks",
+                "type": "INTEGER",
+                "notnull": 0,
+                "pk": 0
+            },
+            {
+                "name": "extra_json",
+                "type": "TEXT",
+                "notnull": 0,
+                "pk": 0
+            }
+        ],
+        "task_run": [
+            {
+                "name": "task_key",
+                "type": "TEXT",
+                "notnull": 0,
+                "pk": 1
+            },
+            {
+                "name": "job_id",
+                "type": "TEXT",
+                "notnull": 1,
+                "pk": 0
+            },
+            {
+                "name": "dataset_name",
+                "type": "TEXT",
+                "notnull": 1,
+                "pk": 0
+            },
+            {
+                "name": "params_json",
+                "type": "TEXT",
+                "notnull": 1,
+                "pk": 0
+            },
+            {
+                "name": "params_hash",
+                "type": "TEXT",
+                "notnull": 1,
+                "pk": 0
+            },
+            {
+                "name": "started_at",
+                "type": "TEXT",
+                "notnull": 0,
+                "pk": 0
+            },
+            {
+                "name": "finished_at",
+                "type": "TEXT",
+                "notnull": 0,
+                "pk": 0
+            },
+            {
+                "name": "status",
+                "type": "TEXT",
+                "notnull": 1,
+                "pk": 0
+            },
+            {
+                "name": "rows_written",
+                "type": "INTEGER",
+                "notnull": 0,
+                "pk": 0
+            },
+            {
+                "name": "parquet_path",
+                "type": "TEXT",
+                "notnull": 0,
+                "pk": 0
+            },
+            {
+                "name": "retry_count",
+                "type": "INTEGER",
+                "notnull": 0,
+                "pk": 0
+            },
+            {
+                "name": "error_message",
+                "type": "TEXT",
+                "notnull": 0,
+                "pk": 0
+            }
+        ],
+        "file_manifest": [
+            {
+                "name": "file_path",
+                "type": "TEXT",
+                "notnull": 0,
+                "pk": 1
+            },
+            {
+                "name": "dataset_name",
+                "type": "TEXT",
+                "notnull": 1,
+                "pk": 0
+            },
+            {
+                "name": "task_key",
+                "type": "TEXT",
+                "notnull": 0,
+                "pk": 0
+            },
+            {
+                "name": "file_kind",
+                "type": "TEXT",
+                "notnull": 1,
+                "pk": 0
+            },
+            {
+                "name": "row_count",
+                "type": "INTEGER",
+                "notnull": 0,
+                "pk": 0
+            },
+            {
+                "name": "file_size",
+                "type": "INTEGER",
+                "notnull": 0,
+                "pk": 0
+            },
+            {
+                "name": "file_hash",
+                "type": "TEXT",
+                "notnull": 0,
+                "pk": 0
+            },
+            {
+                "name": "created_at",
+                "type": "TEXT",
+                "notnull": 1,
+                "pk": 0
+            }
+        ],
+        "verify_run": [
+            {
+                "name": "verify_id",
+                "type": "TEXT",
+                "notnull": 0,
+                "pk": 1
+            },
+            {
+                "name": "dataset_name",
+                "type": "TEXT",
+                "notnull": 1,
+                "pk": 0
+            },
+            {
+                "name": "started_at",
+                "type": "TEXT",
+                "notnull": 1,
+                "pk": 0
+            },
+            {
+                "name": "finished_at",
+                "type": "TEXT",
+                "notnull": 0,
+                "pk": 0
+            },
+            {
+                "name": "status",
+                "type": "TEXT",
+                "notnull": 1,
+                "pk": 0
+            },
+            {
+                "name": "duplicates_cnt",
+                "type": "INTEGER",
+                "notnull": 0,
+                "pk": 0
+            },
+            {
+                "name": "missing_cnt",
+                "type": "INTEGER",
+                "notnull": 0,
+                "pk": 0
+            },
+            {
+                "name": "invalid_cnt",
+                "type": "INTEGER",
+                "notnull": 0,
+                "pk": 0
+            },
+            {
+                "name": "report_json_path",
+                "type": "TEXT",
+                "notnull": 0,
+                "pk": 0
+            },
+            {
+                "name": "report_md_path",
+                "type": "TEXT",
+                "notnull": 0,
+                "pk": 0
+            }
+        ],
+        "dead_letter": [
+            {
+                "name": "dlq_id",
+                "type": "INTEGER",
+                "notnull": 0,
+                "pk": 1
+            },
+            {
+                "name": "dataset_name",
+                "type": "TEXT",
+                "notnull": 1,
+                "pk": 0
+            },
+            {
+                "name": "task_key",
+                "type": "TEXT",
+                "notnull": 1,
+                "pk": 0
+            },
+            {
+                "name": "params_json",
+                "type": "TEXT",
+                "notnull": 1,
+                "pk": 0
+            },
+            {
+                "name": "error_message",
+                "type": "TEXT",
+                "notnull": 1,
+                "pk": 0
+            },
+            {
+                "name": "created_at",
+                "type": "TEXT",
+                "notnull": 1,
+                "pk": 0
+            },
+            {
+                "name": "replay_status",
+                "type": "TEXT",
+                "notnull": 0,
+                "pk": 0
+            }
+        ],
+        "sqlite_sequence": [
+            {
+                "name": "name",
+                "type": "",
+                "notnull": 0,
+                "pk": 0
+            },
+            {
+                "name": "seq",
+                "type": "",
+                "notnull": 0,
+                "pk": 0
+            }
+        ]
+    },
+    "warehouse_duckdb": {
+        "main": {},
+        "audit": {},
+        "raw_ext": {},
+        "silver": {
+            "fact_cffex_fut_basic": [
+                {
+                    "name": "ts_code",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "symbol",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "exchange",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "name",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "fut_code",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "multiplier",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "trade_unit",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "per_unit",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "quote_unit",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "quote_unit_desc",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "d_mode_desc",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "list_date",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "delist_date",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "d_month",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "last_ddate",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "snapshot_date",
+                    "type": "BIGINT",
+                    "nullable": "YES",
+                    "key": null
+                }
+            ],
+            "fact_cffex_fut_daily_selected": [
+                {
+                    "name": "ts_code",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "trade_date",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "pre_close",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "pre_settle",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "open",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "high",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "low",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "close",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "settle",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "change1",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "change2",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "vol",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "amount",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "oi",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "oi_chg",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "end_date",
+                    "type": "BIGINT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "start_date",
+                    "type": "BIGINT",
+                    "nullable": "YES",
+                    "key": null
+                }
+            ],
+            "fact_cffex_fut_mapping_selected": [
+                {
+                    "name": "ts_code",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "trade_date",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "mapping_ts_code",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "end_date",
+                    "type": "BIGINT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "start_date",
+                    "type": "BIGINT",
+                    "nullable": "YES",
+                    "key": null
+                }
+            ],
+            "fact_cffex_opt_basic_full": [
+                {
+                    "name": "ts_code",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "exchange",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "name",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "per_unit",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "opt_code",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "opt_type",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "call_put",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "exercise_type",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "exercise_price",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "s_month",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "maturity_date",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "list_price",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "list_date",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "delist_date",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "last_edate",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "last_ddate",
+                    "type": "INTEGER",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "quote_unit",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "min_price_chg",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "snapshot_date",
+                    "type": "BIGINT",
+                    "nullable": "YES",
+                    "key": null
+                }
+            ],
+            "fact_cffex_opt_daily": [
+                {
+                    "name": "ts_code",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "trade_date",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "exchange",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "pre_settle",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "pre_close",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "open",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "high",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "low",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "close",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "settle",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "vol",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "amount",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "oi",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "end_date",
+                    "type": "BIGINT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "start_date",
+                    "type": "BIGINT",
+                    "nullable": "YES",
+                    "key": null
+                }
+            ],
+            "fact_fx_basic_selected": [
+                {
+                    "name": "ts_code",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "name",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "classify",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "exchange",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "min_unit",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "max_unit",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "pip",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "pip_cost",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "traget_spread",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "min_stop_distance",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "trading_hours",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "break_time",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "snapshot_date",
+                    "type": "BIGINT",
+                    "nullable": "YES",
+                    "key": null
+                }
+            ],
+            "fact_fx_daily_selected": [
+                {
+                    "name": "ts_code",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "trade_date",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "bid_open",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "bid_close",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "bid_high",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "bid_low",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ask_open",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ask_close",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ask_high",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ask_low",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "tick_qty",
+                    "type": "BIGINT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "end_date",
+                    "type": "BIGINT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "start_date",
+                    "type": "BIGINT",
+                    "nullable": "YES",
+                    "key": null
+                }
+            ],
+            "fact_index_basic_selected": [
+                {
+                    "name": "ts_code",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "name",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "market",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "publisher",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "category",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "base_date",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "base_point",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "list_date",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "snapshot_date",
+                    "type": "BIGINT",
+                    "nullable": "YES",
+                    "key": null
+                }
+            ],
+            "fact_index_dailybasic_supported": [
+                {
+                    "name": "ts_code",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "trade_date",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "total_mv",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "float_mv",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "total_share",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "float_share",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "free_share",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "turnover_rate",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "turnover_rate_f",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "pe",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "pe_ttm",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "pb",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "end_date",
+                    "type": "BIGINT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "start_date",
+                    "type": "BIGINT",
+                    "nullable": "YES",
+                    "key": null
+                }
+            ],
+            "fact_index_daily_selected": [
+                {
+                    "name": "ts_code",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "trade_date",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "close",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "open",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "high",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "low",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "pre_close",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "change",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "pct_chg",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "vol",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "amount",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "end_date",
+                    "type": "BIGINT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "start_date",
+                    "type": "BIGINT",
+                    "nullable": "YES",
+                    "key": null
+                }
+            ],
+            "fact_index_global": [
+                {
+                    "name": "ts_code",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "trade_date",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "open",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "close",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "high",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "low",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "pre_close",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "change",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "pct_chg",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "swing",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "vol",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "end_date",
+                    "type": "BIGINT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "start_date",
+                    "type": "BIGINT",
+                    "nullable": "YES",
+                    "key": null
+                }
+            ],
+            "fact_macro_cn_cpi": [
+                {
+                    "name": "month",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "nt_val",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "nt_yoy",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "nt_mom",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "nt_accu",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "town_val",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "town_yoy",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "town_mom",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "town_accu",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "cnt_val",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "cnt_yoy",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "cnt_mom",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "cnt_accu",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "snapshot_date",
+                    "type": "BIGINT",
+                    "nullable": "YES",
+                    "key": null
+                }
+            ],
+            "fact_macro_cn_gdp": [
+                {
+                    "name": "quarter",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "gdp",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "gdp_yoy",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "pi",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "pi_yoy",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "si",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "si_yoy",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ti",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ti_yoy",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "snapshot_date",
+                    "type": "BIGINT",
+                    "nullable": "YES",
+                    "key": null
+                }
+            ],
+            "fact_macro_cn_ppi": [
+                {
+                    "name": "month",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ppi_yoy",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ppi_mp_yoy",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ppi_mp_qm_yoy",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ppi_mp_rm_yoy",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ppi_mp_p_yoy",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ppi_cg_yoy",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ppi_cg_f_yoy",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ppi_cg_c_yoy",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ppi_cg_adu_yoy",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ppi_cg_dcg_yoy",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ppi_mom",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ppi_mp_mom",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ppi_mp_qm_mom",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ppi_mp_rm_mom",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ppi_mp_p_mom",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ppi_cg_mom",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ppi_cg_f_mom",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ppi_cg_c_mom",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ppi_cg_adu_mom",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ppi_cg_dcg_mom",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ppi_accu",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ppi_mp_accu",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ppi_mp_qm_accu",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ppi_mp_rm_accu",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ppi_mp_p_accu",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ppi_cg_accu",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ppi_cg_f_accu",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ppi_cg_c_accu",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ppi_cg_adu_accu",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ppi_cg_dcg_accu",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "snapshot_date",
+                    "type": "BIGINT",
+                    "nullable": "YES",
+                    "key": null
+                }
+            ],
+            "fact_stock_basic_snapshot": [
+                {
+                    "name": "ts_code",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "symbol",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "name",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "area",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "industry",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "cnspell",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "market",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "list_date",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "act_name",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "act_ent_type",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                }
+            ],
+            "fact_stock_cyq_perf": [
+                {
+                    "name": "ts_code",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "trade_date",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "his_low",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "his_high",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "cost_5pct",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "cost_15pct",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "cost_50pct",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "cost_85pct",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "cost_95pct",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "weight_avg",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "winner_rate",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                }
+            ],
+            "fact_stock_daily": [
+                {
+                    "name": "ts_code",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "trade_date",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "open",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "high",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "low",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "close",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "pre_close",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "change",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "pct_chg",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "vol",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "amount",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                }
+            ],
+            "fact_stock_daily_basic": [
+                {
+                    "name": "ts_code",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "trade_date",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "close",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "turnover_rate",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "turnover_rate_f",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "volume_ratio",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "pe",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "pe_ttm",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "pb",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ps",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ps_ttm",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "dv_ratio",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "dv_ttm",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "total_share",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "float_share",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "free_share",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "total_mv",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "circ_mv",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                }
+            ],
+            "fact_stock_fina_indicator": [
+                {
+                    "name": "ts_code",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ann_date",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "end_date",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "eps",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "dt_eps",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "total_revenue_ps",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "revenue_ps",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "capital_rese_ps",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "surplus_rese_ps",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "undist_profit_ps",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "extra_item",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "profit_dedt",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "gross_margin",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "current_ratio",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "quick_ratio",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "cash_ratio",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ar_turn",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ca_turn",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "fa_turn",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "assets_turn",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "op_income",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ebit",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ebitda",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "fcff",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "fcfe",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "current_exint",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "noncurrent_exint",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "interestdebt",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "netdebt",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "tangible_asset",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "working_capital",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "networking_capital",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "invest_capital",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "retained_earnings",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "diluted2_eps",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "bps",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ocfps",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "retainedps",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "cfps",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ebit_ps",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "fcff_ps",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "fcfe_ps",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "netprofit_margin",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "grossprofit_margin",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "cogs_of_sales",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "expense_of_sales",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "profit_to_gr",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "saleexp_to_gr",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "adminexp_of_gr",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "finaexp_of_gr",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "impai_ttm",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "gc_of_gr",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "op_of_gr",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ebit_of_gr",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "roe",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "roe_waa",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "roe_dt",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "roa",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "npta",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "roic",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "roe_yearly",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "roa2_yearly",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "debt_to_assets",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "assets_to_eqt",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "dp_assets_to_eqt",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ca_to_assets",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "nca_to_assets",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "tbassets_to_totalassets",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "int_to_talcap",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "eqt_to_talcapital",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "currentdebt_to_debt",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "longdeb_to_debt",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ocf_to_shortdebt",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "debt_to_eqt",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "eqt_to_debt",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "eqt_to_interestdebt",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "tangibleasset_to_debt",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "tangasset_to_intdebt",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "tangibleasset_to_netdebt",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ocf_to_debt",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "turn_days",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "roa_yearly",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "roa_dp",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "fixed_assets",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "profit_to_op",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "q_saleexp_to_gr",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "q_gc_to_gr",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "q_roe",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "q_dt_roe",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "q_npta",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "q_ocf_to_sales",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "basic_eps_yoy",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "dt_eps_yoy",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "cfps_yoy",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "op_yoy",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ebt_yoy",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "netprofit_yoy",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "dt_netprofit_yoy",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ocf_yoy",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "roe_yoy",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "bps_yoy",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "assets_yoy",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "eqt_yoy",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "tr_yoy",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "or_yoy",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "q_sales_yoy",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "q_op_qoq",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "equity_yoy",
+                    "type": "DOUBLE",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "update_flag",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                }
+            ],
+            "fact_stock_mins_60m": [
+                {
+                    "name": "ts_code",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "trade_time",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "close",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "open",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "high",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "low",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "vol",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "amount",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                }
+            ],
+            "fact_stock_moneyflow": [
+                {
+                    "name": "ts_code",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "trade_date",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "buy_sm_vol",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "buy_sm_amount",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "sell_sm_vol",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "sell_sm_amount",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "buy_md_vol",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "buy_md_amount",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "sell_md_vol",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "sell_md_amount",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "buy_lg_vol",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "buy_lg_amount",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "sell_lg_vol",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "sell_lg_amount",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "buy_elg_vol",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "buy_elg_amount",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "sell_elg_vol",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "sell_elg_amount",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "net_mf_vol",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "net_mf_amount",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                }
+            ],
+            "fact_stock_stk_limit": [
+                {
+                    "name": "trade_date",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "ts_code",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "up_limit",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "down_limit",
+                    "type": "FLOAT",
+                    "nullable": "YES",
+                    "key": null
+                }
+            ],
+            "fact_stock_suspend_d": [
+                {
+                    "name": "ts_code",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "trade_date",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "suspend_timing",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                },
+                {
+                    "name": "suspend_type",
+                    "type": "VARCHAR",
+                    "nullable": "YES",
+                    "key": null
+                }
+            ]
+        }
+    }
+}

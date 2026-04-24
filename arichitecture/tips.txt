@@ -1,3 +1,0 @@
-D:\Trading\data_ever_26_3_14\src_data_download文件夹下的的内容是为了下载数据 ，域 你当前的工作无关；D:\Trading\data_ever_26_3_14\data\Raw_data\daily_2005_parts等多个*_parts等多个结尾的文件夹都不用管，只有data\Raw_data下的parquet文件，比如cyq_perf.parquet，才是你要读取的；
-data\Raw_data\stk_60_mins.parquet数据只下载了一部分，有缺失无关 ，之后 会补齐；
-请你使用powershell语法 ，可以多用python实现；
