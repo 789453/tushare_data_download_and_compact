@@ -43,9 +43,6 @@ htmlcov/
 *.tmp
 *.bak
 
-# Databases
-*.db
-*.sqlite3
 
 # -------------------------
 # Your custom upload rules
@@ -57,9 +54,13 @@ data/**
 # But keep catalog and its contents
 !data/catalog/
 !data/catalog/**
+!data/meta/
+!data/meta/**
+
+# Exclude large DuckDB warehouse file
+data/meta/warehouse.duckdb
 
 # Ignore everything under arichitecture
 arichitecture/**
 
-# But keep the specified markdown file
-!arichitecture/项目升级和新数据使用文档.md
+
